@@ -1,31 +1,61 @@
 package StEEl;
 
-import org.openimaj.image.DisplayUtilities;
-import org.openimaj.image.MBFImage;
-import org.openimaj.image.colour.ColourSpace;
-import org.openimaj.image.colour.RGBColour;
-import org.openimaj.image.processing.convolution.FGaussianConvolve;
-import org.openimaj.image.typography.hershey.HersheyFont;
+import org.openimaj.data.dataset.VFSGroupDataset;
+import org.openimaj.image.FImage;
+import org.openimaj.image.ImageUtilities;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
  * OpenIMAJ Hello world!
- *
  */
-public class App {
-    public static void main( String[] args ) {
-    	//Create an image
-        MBFImage image = new MBFImage(320,70, ColourSpace.RGB);
+public class App
+{
 
-        //Fill the image with white
-        image.fill(RGBColour.WHITE);
-        		        
-        //Render some test into the image
-        image.drawText("Hello World", 10, 60, HersheyFont.CURSIVE, 50, RGBColour.BLACK);
 
-        //Apply a Gaussian blur
-        image.processInplace(new FGaussianConvolve(2f));
-        
-        //Display the image
-        DisplayUtilities.display(image);
-    }
+	public static void main(String[] args)
+	{
+		ClassifierController classifiers = new ClassifierController();
+		classifiers.runClassifiers();
+	}
+
+
+	private void initialiseData() throws IOException
+	{
+		if (!trainingDataDirectory.exists())
+		{
+			throw new IOException("Training data missing");
+		}
+		if (!testingDataDirectory.exists())
+		{
+			throw new IOException("Testing data missing");
+		}
+
+		this.trainingData = new VFSGroupDataset<FImage>("zip:http://datasets.openimaj.org/att_faces.zip", ImageUtilities.FIMAGE_READER);
+	}
+
+
+	private void run1_knn()
+	{
+		throw new UnsupportedOperationException();
+	}
+
+
+	private  void run2_linear()
+	{
+		throw new UnsupportedOperationException();
+	}
+
+
+	private  void run3_complex()
+	{
+		throw new UnsupportedOperationException();
+	}
+
+
+	private void writeTestResults(File file, String imageName, String predictedImageClass)
+	{
+		throw new UnsupportedOperationException();
+	}
 }
