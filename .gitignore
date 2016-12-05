@@ -13,3 +13,6 @@ hs_err_pid*
 
 *.jpg
 *.DS_Store
+
+/.idea
+*.iml
