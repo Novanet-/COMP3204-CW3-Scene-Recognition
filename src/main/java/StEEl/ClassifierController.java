@@ -26,6 +26,7 @@ public class ClassifierController
 	/**
 	 *
 	 */
+	@SuppressWarnings("OverlyBroadCatchBlock")
 	public final void runClassifiers()
 	{
 		try
@@ -35,7 +36,7 @@ public class ClassifierController
 			run2Linear();
 			run3Complex();
 		}
-		catch (IOException e)
+		catch (final IOException e)
 		{
 			e.printStackTrace();
 		}
@@ -106,7 +107,7 @@ public class ClassifierController
 
 	private void recordResults(File file, Map<FImage, ClassificationResult<String>> predictions)
 	{
-		for (Map.Entry<FImage, ClassificationResult<String>> entry : predictions.entrySet())
+		for (final Map.Entry<FImage, ClassificationResult<String>> entry : predictions.entrySet())
 		{
 			writeResult(file, entry.getKey().toString(), entry.getValue().toString());
 		}
@@ -124,27 +125,7 @@ public class ClassifierController
 		throw new UnsupportedOperationException();
 	}
 
-
-	public VFSGroupDataset<FImage> getTrainingData()
-	{
-		return trainingData;
-	}
-
-
-	public void setTrainingData(VFSGroupDataset<FImage> trainingData)
-	{
-		this.trainingData = trainingData;
-	}
-
-
-	public VFSGroupDataset<FImage> getTestingData()
-	{
-		return testingData;
-	}
-
-
-	public void setTestingData(VFSGroupDataset<FImage> testingData)
-	{
-		this.testingData = testingData;
-	}
 }
+
+
+
