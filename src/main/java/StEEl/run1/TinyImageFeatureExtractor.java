@@ -9,7 +9,7 @@ import org.openimaj.util.array.ArrayUtils;
 /**
  * Extract TinyImage feature vector from image
  */
-class TinyImageFeatureExtractor implements FeatureExtractor<DoubleFV,FImage>
+class TinyImageFeatureExtractor implements FeatureExtractor<DoubleFV, FImage>
 {
 
 	private float squareSize;
@@ -22,17 +22,18 @@ class TinyImageFeatureExtractor implements FeatureExtractor<DoubleFV,FImage>
 
 
 	@Override
-	public final DoubleFV extractFeature(FImage object) {
-		//Smallest dimension of image is the biggest the square can be
+	public final DoubleFV extractFeature(FImage object)
+	{
+		//The tiny image has to be a square, takes the smallest dimension
 		final int size = Math.min(object.width, object.height);
 
-		//Extract the square from centre
+		//Return the regtangular center of the image, extends width/2 and height/2 from the centre point
 		final FImage center = object.extractCenter(size, size);
 
-		//Resize image to tiny image
+		//Scales the original image down to these smaller dimensions
 		final FImage small = center.process(new ResizeProcessor(squareSize, squareSize));
 
-		//2D array to 1D vector
+		//Flatten the image vectors into a 1D array
 		return new DoubleFV(ArrayUtils.reshape(ArrayUtils.convertToDouble(small.pixels)));
 	}
 
