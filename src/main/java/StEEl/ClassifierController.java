@@ -35,6 +35,7 @@ public class ClassifierController
 	private static final File   TRAINING_DATA_DIRECTORY   = new File(CURRENT_WORKING_DIRECTORY + "/training/");
 	//	private static final File   TRAINING_DATA_DIRECTORY   = new File("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\training.zip");
 	private static final File   TESTING_DATA_DIRECTORY    = new File(CURRENT_WORKING_DIRECTORY + "/testing/");
+
 	private final        int    TINYIMAGE_ID              = 1;
 	private final        int    LINEAR_ID                 = 2;
 	private final        int    COMPLEX_ID                = 3;
@@ -198,8 +199,8 @@ public class ClassifierController
 		{
 			File submissionFile = new File(System.getProperty("user.dir") + "default.txt");
 			submissionFile = setSubmissionFileLocation(instance, submissionFile);
-			Files.write(submissionFile.toPath(), "".getBytes(),  StandardOpenOption.CREATE);
-			Files.write(submissionFile.toPath(), "".getBytes(),  StandardOpenOption.WRITE);
+			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.CREATE);
+			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.WRITE);
 
 			for (int j = 0; j < testData.size(); j++)
 			{
