@@ -6,6 +6,10 @@ package StEEl;
 public class App
 {
 
+	static boolean writeSubmissionFileArg = true;
+	static boolean consoleOutputArg       = true;
+
+
 	private App() {}
 
 
@@ -15,7 +19,7 @@ public class App
 	public static void main(String[] args)
 	{
 		final ClassifierController classifiers = new ClassifierController();
-		classifiers.runClassifiers();
+		classifiers.runClassifiers(consoleOutputArg, writeSubmissionFileArg);
 	}
 
 }

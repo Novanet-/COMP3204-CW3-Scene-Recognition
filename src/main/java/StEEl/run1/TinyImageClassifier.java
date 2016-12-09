@@ -32,6 +32,8 @@ public class TinyImageClassifier implements IClassifier
 
 	/**
 	 * Train the classifier with a training set
+	 * <p>
+	 * Extracts a "tiny image" from the image as a feature vector, and adds this to a KNN pool for use in classification
 	 *
 	 * @param trainingSet
 	 */
@@ -50,6 +52,7 @@ public class TinyImageClassifier implements IClassifier
 			{
 				// Extract feature vector
 				final DoubleFV featureVector = ve.extractFeature(image);
+
 				featureVector.normaliseFV();
 				final double[] fv = featureVector.values;
 
@@ -68,6 +71,8 @@ public class TinyImageClassifier implements IClassifier
 
 	/**
 	 * Classify an object.
+	 * <p>
+	 * Uses KNN against the training set to guess a class for the image
 	 *
 	 * @param image the object to classify.
 	 * @return classes and scores for the object.
@@ -75,32 +80,35 @@ public class TinyImageClassifier implements IClassifier
 	@Override
 	public final ClassificationResult<String> classify(final FImage image)
 	{
-		//Extract feature vector for image
+		//Create a tiny image feature extractor
 		final FeatureExtractor<DoubleFV, FImage> vectorExtractor = new TinyImageFeatureExtractor(SQUARE_SIZE);
+
+		//Extract the "tiny image" of the image as a 1D feature vector
 		final DoubleFV featureVector = vectorExtractor.extractFeature(image);
 		featureVector.normaliseFV();
 		final double[] featureVectorArray = featureVector.values;
 
-		//Find k nearest neighbours
+		//Find k nearest neighbours (match the images "tiny image" with all the "tiny images" in the training set
 		final List<IntDoublePair> neighbours = knn.searchKNN(featureVectorArray, K_VALUE);
 
-		//Map classes to the number of neighbours that have that class
+		//Count the amount of each image class that are neighbours to the current image
 		final Map<String, Integer> classCount = countNeighbourClasses(neighbours);
 
-		//List of class and their count
+		//Het the lsit of image classes, and their occurence amount in the knn search
 		final Set<Map.Entry<String, Integer>> classEntries = classCount.entrySet();
 		final List<Map.Entry<String, Integer>> classGuessList = new ArrayList<Map.Entry<String, Integer>>(classEntries);
 
-		//Sort list with greatest count first
+		//Sort list of class appearances in descending order
 		Collections.sort(classGuessList, new TinyImageClassifier.ClassEntryComparator());
 
-		//Confidence in result
-
+		//The percentage of the K neighbours which were members of the class which gained a plurality, the higher the proportion of the neighbours which are the winning class,
+		//the higher the confidence of that guess
 		final double resultConfidence = classGuessList.get(0).getValue().doubleValue() / (double) K_VALUE;
 
-		//Guessed class is first in list
+		//Retrieve the name of the winning class
 		final String guessedClass = classGuessList.get(0).getKey();
 
+		//Store the result of the classification
 		final BasicClassificationResult<String> classificationResult = new BasicClassificationResult<String>();
 		classificationResult.put(guessedClass, resultConfidence);
 
@@ -110,21 +118,24 @@ public class TinyImageClassifier implements IClassifier
 
 	private Map<String, Integer> countNeighbourClasses(final Iterable<IntDoublePair> neighbours)
 	{
+		//Initialise the class:count map
 		final HashMap<String, Integer> classCount = new HashMap<String, Integer>();
-		//For all neighbours
+
+		//For every neighbour found in the search
 		for (final IntDoublePair result : neighbours)
 		{
-			//Get neighbour class
+			//Get the neighbour class
 			final String resultClass = classes.get(result.first);
 
 			int newCount = 1;
+
 			//Retrieve existing count for the class
 			if (classCount.containsKey(resultClass))
 			{
 				newCount += classCount.get(resultClass);
 			}
 
-			//Add 1 to class count
+			//Add 1 to the class count
 			classCount.put(resultClass, newCount);
 
 		}
