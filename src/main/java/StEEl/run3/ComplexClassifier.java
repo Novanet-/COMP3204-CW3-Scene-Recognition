@@ -1,6 +1,6 @@
 package StEEl.run3;
 
-import StEEl.IClassifier;
+import StEEl.AbstractClassifier;
 import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.ListDataset;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
@@ -9,8 +9,14 @@ import org.openimaj.image.FImage;
 /**
  * Created by Will on 08/12/2016.
  */
-public class ComplexClassifier implements IClassifier
+public class ComplexClassifier extends AbstractClassifier
 {
+
+	public ComplexClassifier(final int classifierID)
+	{
+		super(classifierID);
+	}
+
 
 	/**
 	 * Train the classifier with a training set
