@@ -1,6 +1,6 @@
 package StEEl.run1;
 
-import StEEl.IClassifier;
+import StEEl.AbstractClassifier;
 import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.ListDataset;
 import org.openimaj.experiment.evaluation.classification.BasicClassificationResult;
@@ -14,7 +14,7 @@ import org.openimaj.util.pair.IntDoublePair;
 import java.io.Serializable;
 import java.util.*;
 
-public class TinyImageClassifier implements IClassifier
+public class TinyImageClassifier extends AbstractClassifier
 {
 
 	public static final double[][] featureArray = {};
@@ -28,6 +28,12 @@ public class TinyImageClassifier implements IClassifier
 
 	//The classes of the training feature vectors (array indices correspond to featureVector indices)
 	private List<String> classes;
+
+
+	public TinyImageClassifier(final int classifierID)
+	{
+		super(classifierID);
+	}
 
 
 	/**

@@ -18,7 +18,7 @@ public interface IClassifier extends Classifier<String, FImage>
 	 */
 	public void train(GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet);
 
-	public int getClassifierID() throws Exception;
+	public int getClassifierID() throws ClassifierException;
 
 }
 

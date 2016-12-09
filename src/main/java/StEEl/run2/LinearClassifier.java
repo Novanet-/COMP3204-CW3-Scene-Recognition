@@ -1,6 +1,6 @@
 package StEEl.run2;
 
-import StEEl.IClassifier;
+import StEEl.AbstractClassifier;
 import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.ListDataset;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
@@ -9,7 +9,14 @@ import org.openimaj.image.FImage;
 /**
  *
  */
-public class LinearClassifier implements IClassifier{
+public class LinearClassifier extends AbstractClassifier
+{
+
+	public LinearClassifier(final int classifierID)
+	{
+		super(classifierID);
+	}
+
 
 	/**
 	 * Train the classifier with a training set

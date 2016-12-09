@@ -11,7 +11,14 @@ import org.openimaj.image.FImage;
 public abstract class AbstractClassifier implements IClassifier
 {
 
-	private static final int classifierID = 0;
+	private final int classifierID;
+
+
+	protected AbstractClassifier(int classifierID)
+	{
+		super();
+		this.classifierID = classifierID;
+	}
 
 
 	/**
