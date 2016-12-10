@@ -36,9 +36,9 @@ public class ClassifierController
 	//	private static final File   TRAINING_DATA_DIRECTORY   = new File("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\training.zip");
 	private static final File   TESTING_DATA_DIRECTORY    = new File(CURRENT_WORKING_DIRECTORY + "/testing/");
 
-	private final        int    TINYIMAGE_ID              = 1;
-	private final        int    LINEAR_ID                 = 2;
-	private final        int    COMPLEX_ID                = 3;
+	private final int TINYIMAGE_ID = 1;
+	private final int LINEAR_ID    = 2;
+	private final int COMPLEX_ID   = 3;
 	//	private static final File   TESTING_DATA_DIRECTORY    = new File("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\testing.zip");
 	private GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingDataset;
 	private VFSListDataset<FImage>                                 testDataset;
@@ -60,20 +60,16 @@ public class ClassifierController
 
 			initialiseData();
 
-			final TinyImageClassifier run1TinyImage = new TinyImageClassifier(1);
-			final LinearClassifier run2LinearClassifier = new LinearClassifier(2);
-			final ComplexClassifier run3ComplexClassifier = new ComplexClassifier(3);
+			final IClassifier run1TinyImage = new TinyImageClassifier(1);
+			final IClassifier run2LinearClassifier = new LinearClassifier(2);
+			final IClassifier run3ComplexClassifier = new ComplexClassifier(3);
 
-			runClassifier(run1TinyImage);
+			//			runClassifier(run1TinyImage);
 			runClassifier(run2LinearClassifier);
 			runClassifier(run3ComplexClassifier);
 
 		}
-		catch (final IOException e)
-		{
-			e.printStackTrace();
-		}
-		catch (Exception e)
+		catch (final IOException | ClassifierException e)
 		{
 			e.printStackTrace();
 		}
@@ -108,27 +104,21 @@ public class ClassifierController
 	/**
 	 *
 	 */
-	private void runClassifier(IClassifier instance) throws Exception
+	private void runClassifier(IClassifier instance) throws ClassifierException
 	{
-		try
-		{
-			GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData();
-			final VFSListDataset<FImage> testData = createTestDataset();
 
-			System.out.println("Training dataset loaded. Staring training...");
+		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData();
+		final VFSListDataset<FImage> testData = createTestDataset();
 
-			trainClassifer(instance, trainingData);
+		System.out.println("Training dataset loaded. Staring training...");
 
-			System.out.println("Training complete. Now predicting... (progress on stderr, output on stout)");
+		trainClassifer(instance, trainingData);
 
-			testClassifier(instance, testData);
-			evaluateClassifier(instance, trainingData);
+		System.out.println("Training complete. Now predicting... (progress on stderr, output on stout)");
 
-		}
-		catch (final RuntimeException e)
-		{
-			e.printStackTrace();
-		}
+		testClassifier(instance, testData);
+		evaluateClassifier(instance, trainingData);
+
 	}
 
 
@@ -136,7 +126,7 @@ public class ClassifierController
 	 * @return
 	 * @throws Exception
 	 */
-	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData() throws Exception
+	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData()
 	{
 		GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
@@ -160,7 +150,7 @@ public class ClassifierController
 	 * @return
 	 * @throws Exception
 	 */
-	private VFSListDataset<FImage> createTestDataset() throws Exception
+	private VFSListDataset<FImage> createTestDataset() throws ClassifierException
 	{
 		//		UniformRandomisedSampler<FImage> listSampler = new UniformRandomisedSampler<FImage>(0.8d);
 		//
@@ -171,7 +161,7 @@ public class ClassifierController
 		// Loading test dataset
 		if (testDataset == null)
 		{
-			throw new Exception("Error loading test dataset");
+			throw new ClassifierException("Error loading test dataset");
 		}
 
 		System.out.println("Test set size = " + testData.size());
