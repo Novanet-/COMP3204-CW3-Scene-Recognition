@@ -1,4 +1,4 @@
-package StEEl.run2;
+package StEEl.run3;
 
 import org.openimaj.data.DataSource;
 import org.openimaj.feature.FeatureExtractor;
@@ -19,12 +19,12 @@ import java.util.List;
 /**
  * Created by matt on 09/12/16.
  */
-public class BagOfVisualWordsExtractor implements FeatureExtractor<SparseIntFV, FImage> {
+public class MATTBagOfVisualWordsExtractor implements FeatureExtractor<SparseIntFV, FImage> {
 
     DoGSIFTEngine engine;
     BagOfVisualWords bovw;
 
-    public BagOfVisualWordsExtractor(BagOfVisualWords bovw) {
+    public MATTBagOfVisualWordsExtractor(BagOfVisualWords bovw) {
         engine = new DoGSIFTEngine();
         this.bovw = bovw;
     }
