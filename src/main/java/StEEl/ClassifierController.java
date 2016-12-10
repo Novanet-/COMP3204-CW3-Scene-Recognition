@@ -64,7 +64,7 @@ public class ClassifierController
 			final LinearClassifier run2LinearClassifier = new LinearClassifier(2);
 			final ComplexClassifier run3ComplexClassifier = new ComplexClassifier(3);
 
-			runClassifier(run1TinyImage);
+//			runClassifier(run1TinyImage);
 			runClassifier(run2LinearClassifier);
 			runClassifier(run3ComplexClassifier);
 
