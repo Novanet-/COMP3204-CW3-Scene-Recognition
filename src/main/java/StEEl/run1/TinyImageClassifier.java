@@ -1,6 +1,7 @@
 package StEEl.run1;
 
 import StEEl.AbstractClassifier;
+import StEEl.ClassifierUtils;
 import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.ListDataset;
 import org.openimaj.experiment.evaluation.classification.BasicClassificationResult;
@@ -12,6 +13,7 @@ import org.openimaj.knn.DoubleNearestNeighboursExact;
 import org.openimaj.util.pair.IntDoublePair;
 
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.*;
 
 public class TinyImageClassifier extends AbstractClassifier
@@ -51,12 +53,15 @@ public class TinyImageClassifier extends AbstractClassifier
 
 		final FeatureExtractor<DoubleFV, FImage> ve = new TinyImageFeatureExtractor(SQUARE_SIZE);
 		//For each image in each class
+		int count = 0;
 
 		for (final String group : trainingSet.getGroups())
 		{
 			for (final FImage image : trainingSet.get(group))
 			{
 				// Extract feature vector
+				ClassifierUtils.parallelAwarePrintln(this, MessageFormat.format("Extracting Feature Image {0}", count));
+
 				final DoubleFV featureVector = ve.extractFeature(image);
 
 				featureVector.normaliseFV();
@@ -64,6 +69,7 @@ public class TinyImageClassifier extends AbstractClassifier
 
 				featureVectors.add(fv);
 				classes.add(group);
+				count++;
 			}
 		}
 

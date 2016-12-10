@@ -24,6 +24,11 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import static StEEl.ClassifierUtils.parallelAwarePrintln;
 
 class ClassifierController
 {
@@ -44,6 +49,7 @@ class ClassifierController
 	private              VFSListDataset<FImage>                                 testDataset         = null;
 	private              boolean                                                consoleOutput       = false;
 	private              boolean                                                writeSubmissionFile = false;
+	private ExecutorService topExecutor;
 
 
 	/**
@@ -58,18 +64,44 @@ class ClassifierController
 			this.consoleOutput = consoleOutputArg;
 			this.writeSubmissionFile = writeSubmissionFileArg;
 
+			topExecutor = Executors.newCachedThreadPool();
+
 			initialiseData();
 
 			final IClassifier run1TinyImage = new TinyImageClassifier(1);
 			final IClassifier run2LinearClassifier = new LinearClassifier(2);
 			final IClassifier run3ComplexClassifier = new ComplexClassifier(3);
 
-			runClassifier(run1TinyImage);
-			runClassifier(run2LinearClassifier);
-			runClassifier(run3ComplexClassifier);
+			final Runnable c1task = () -> runClassifierTask(run1TinyImage);
+			final Runnable c2task = () -> runClassifierTask(run2LinearClassifier);
+			final Runnable c3task = () -> runClassifierTask(run3ComplexClassifier);
 
+			//Asynchronous execution
+			//			topExecutor.execute(c1task);
+			//			topExecutor.execute(c2task);
+			//			topExecutor.execute(c3task);
+			//
+			//			topExecutor.shutdown();
+			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+
+			//Synchronouss execution
+			topExecutor.execute(c1task);
+			topExecutor.shutdown();
+			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+
+			topExecutor = Executors.newCachedThreadPool();
+
+			topExecutor.execute(c2task);
+			topExecutor.shutdown();
+			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+
+			topExecutor = Executors.newCachedThreadPool();
+
+			topExecutor.execute(c3task);
+			topExecutor.shutdown();
+			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 		}
-		catch (final IOException | ClassifierException e)
+		catch (final IOException | InterruptedException e)
 		{
 			e.printStackTrace();
 		}
@@ -100,6 +132,19 @@ class ClassifierController
 	}
 
 
+	private void runClassifierTask(final IClassifier classifier)
+	{
+		try
+		{
+			runClassifier(classifier);
+		}
+		catch (ClassifierException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+
 	/**
 	 * @param instance
 	 * @throws ClassifierException
@@ -107,14 +152,14 @@ class ClassifierController
 	private void runClassifier(IClassifier instance) throws ClassifierException
 	{
 
-		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData();
-		final VFSListDataset<FImage> testData = createTestDataset();
+		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData(instance);
+		final VFSListDataset<FImage> testData = createTestDataset(instance);
 
-		System.out.println("Training dataset loaded. Staring training...");
+		parallelAwarePrintln(instance, "Training dataset loaded. Staring training...");
 
 		trainClassifer(instance, trainingData);
 
-		System.out.println("Training complete. Now predicting... (progress on stderr, output on stout)");
+		parallelAwarePrintln(instance, "Training complete. Now predicting... (progress on stderr, output on stout)");
 
 		testClassifier(instance, testData);
 		evaluateClassifier(instance, trainingData);
@@ -123,10 +168,11 @@ class ClassifierController
 
 
 	/**
+	 * @param instance
 	 * @return
 	 * @throws Exception
 	 */
-	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData()
+	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData(final IClassifier instance)
 	{
 		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
@@ -139,17 +185,18 @@ class ClassifierController
 		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
 		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
 
-		System.out.println("Training set size = " + trainingDataSize);
-		//			System.out.println("Control set size = " + controlData.size());
+		parallelAwarePrintln(instance, "Training set size = " + trainingDataSize);
+		//			ClassifierUtils.parallelAwarePrintln("Control set size = " + controlData.size());
 		return newTrainingDataset;
 	}
 
 
 	/**
+	 * @param instance
 	 * @return
 	 * @throws Exception
 	 */
-	private VFSListDataset<FImage> createTestDataset() throws ClassifierException
+	private VFSListDataset<FImage> createTestDataset(final IClassifier instance) throws ClassifierException
 	{
 		//		UniformRandomisedSampler<FImage> listSampler = new UniformRandomisedSampler<FImage>(0.8d);
 		//
@@ -163,7 +210,7 @@ class ClassifierController
 			throw new ClassifierException("Error loading test dataset");
 		}
 
-		System.out.println("Test set size = " + testData.size());
+		parallelAwarePrintln(instance, "Test set size = " + testData.size());
 		return testData;
 	}
 
@@ -188,16 +235,24 @@ class ClassifierController
 		{
 			File submissionFile = new File(System.getProperty("user.dir") + "default.txt");
 			submissionFile = setSubmissionFileLocation(instance, submissionFile);
+			Files.deleteIfExists(submissionFile.toPath());
 			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.CREATE);
-			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.WRITE);
+			//			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.WRITE);
+
+			ExecutorService classifyExecutor = Executors.newCachedThreadPool();
 
 			for (int j = 0; j < testData.size(); j++)
 			{
-				classifyImage(instance, testData, submissionFile, j);
+				final File finalSubmissionFile = submissionFile;
+				final int finalJ = j;
+				//				ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Classifying Image {0}", j));
+				classifyExecutor.execute(() -> classifyImage(instance, testData, finalSubmissionFile, finalJ));
 			}
-			System.out.println("\n Done.");
+			classifyExecutor.shutdown();
+			classifyExecutor.awaitTermination(5, TimeUnit.MINUTES);
+			parallelAwarePrintln(instance, "\n Done.");
 		}
-		catch (ClassifierException | IOException e)
+		catch (ClassifierException | IOException | InterruptedException e)
 		{
 			e.printStackTrace();
 		}
@@ -219,7 +274,7 @@ class ClassifierController
 		{
 			final CMResult<String> result = evaluator.analyse(guesses);
 
-			System.out.println(result.getDetailReport());
+			parallelAwarePrintln(instance, result.getDetailReport());
 		}
 	}
 
@@ -273,44 +328,49 @@ class ClassifierController
 	 */
 	private void classifyImage(final IClassifier instance, final VFSListDataset<FImage> testDatasetToClassify, final File submissionFile, final int j)
 	{
-		final FImage img = testDatasetToClassify.get(j);
-		final String filename = testDatasetToClassify.getID(j);
+		try
+		{
+			final FImage img = testDatasetToClassify.get(j);
+			final String filename = testDatasetToClassify.getID(j);
 
-		final ClassificationResult<String> predicted = instance.classify(img);
-		if (consoleOutput)
-		{
-			printTestProgress(testDatasetToClassify, j, filename, predicted);
+			ExecutorService printExecutor = Executors.newCachedThreadPool();
+
+			final ClassificationResult<String> predicted = instance.classify(img);
+			if (consoleOutput)
+			{
+				printExecutor.execute(() -> printTestProgress(instance, testDatasetToClassify, j, filename, predicted));
+			}
+			if (writeSubmissionFile)
+			{
+				printExecutor.execute(() -> writeResult(submissionFile, filename, predicted));
+				//			writeResult(submissionFile, filename, predicted);
+			}
+			printExecutor.shutdown();
+			printExecutor.awaitTermination(10, TimeUnit.SECONDS);
 		}
-		if (writeSubmissionFile)
+		catch (InterruptedException e)
 		{
-			new Thread(() -> writeResult(submissionFile, filename, predicted)).start();
-			//			writeResult(submissionFile, filename, predicted);
+			e.printStackTrace();
 		}
 	}
 
 
 	/**
+	 * @param instance
 	 * @param classifiedTestDataset
 	 * @param j
 	 * @param file
 	 * @param predicted
 	 */
-	private static void printTestProgress(final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file, final ClassificationResult<String> predicted)
+	private static void printTestProgress(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
+			final ClassificationResult<String> predicted)
 	{
 		if (predicted != null)
 		{
 			final Set<String> predictedClasses = predicted.getPredictedClasses();
 			final String[] classes = predictedClasses.toArray(new String[predictedClasses.size()]);
 
-			System.out.print(file);
-			System.out.print(" ");
-			for (final String cls : classes)
-			{
-				System.out.print(cls);
-				System.out.print(" ");
-			}
-			System.out.println();
-			System.out.printf("\r %d %%  ", Math.round(((double) (j + 1) * 100.0) / (double) classifiedTestDataset.size()));
+			buildAndPrintProgressString(instance, classifiedTestDataset, j, file, classes);
 
 		}
 	}
@@ -349,6 +409,31 @@ class ClassifierController
 		else
 		{
 		}
+	}
+
+
+	private static void buildAndPrintProgressString(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
+			final String[] classes)
+	{
+		StringBuilder sb = new StringBuilder();
+		sb.append(file).append(" ");
+
+		for (final String cls : classes)
+		{
+			sb.append(cls);
+			sb.append(" ");
+		}
+		sb.append(System.lineSeparator());
+		try
+		{
+			sb.append("\r").append("[").append(instance.getClassifierID()).append("] -- ");
+		}
+		catch (ClassifierException e)
+		{
+			e.printStackTrace();
+		}
+
+		System.out.print(sb);
 	}
 
 }
