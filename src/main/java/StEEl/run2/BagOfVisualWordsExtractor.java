@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * Created by matt on 09/12/16.
  */
-public class BagOfVisualWordsExtractor implements FeatureExtractor<SparseFloatFV, FImage> {
+public class BagOfVisualWordsExtractor implements FeatureExtractor<SparseIntFV, FImage> {
 
     DoGSIFTEngine engine;
     BagOfVisualWords bovw;
@@ -30,20 +30,11 @@ public class BagOfVisualWordsExtractor implements FeatureExtractor<SparseFloatFV
     }
 
     @Override
-    public SparseFloatFV extractFeature(FImage object) {
+    public SparseIntFV extractFeature(FImage object) {
         //Find the keypoints
         LocalFeatureList<Keypoint> keypoints = engine.findFeatures(object);
 
         //Convert them into the right output format with relation to the bovw
-        SparseIntFV intFV = bovw.aggregate(keypoints);
-
-        float[] vals = new float[intFV.length()];
-        double[] asDouble = intFV.asDoubleVector();
-
-        for (int i = 0; i < intFV.length(); i++) {
-            vals[i] = (float) asDouble[i];
-        }
-
-        return new SparseFloatFV(vals);
+        return bovw.aggregate(keypoints);
     }
 }
