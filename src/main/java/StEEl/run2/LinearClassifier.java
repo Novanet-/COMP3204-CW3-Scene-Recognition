@@ -1,6 +1,7 @@
 package StEEl.run2;
 
 import StEEl.AbstractClassifier;
+import StEEl.ClassifierUtils;
 import de.bwaldvogel.liblinear.SolverType;
 import org.openimaj.data.dataset.Dataset;
 import org.openimaj.data.dataset.GroupedDataset;
@@ -52,18 +53,18 @@ public class LinearClassifier extends AbstractClassifier
 	{
 		// build vocabulary using images from all classes.
 		final TrainSplitProvider rndspl = new GroupedRandomSplitter<String, FImage>(trainingSet, IMAGES_FOR_VOCABULARY, 0, 0);
-		final HardAssigner<float[], float[], IntFloatPair> assigner = trainQuantiser(rndspl.getTrainingDataset());
+		final HardAssigner<float[], float[], IntFloatPair> assigner = trainQuantiser(this, rndspl.getTrainingDataset());
 
 		// create FeatureExtractor.
 		final BagOfVisualWords<float[]> bovw = new BagOfVisualWords<float[]>(assigner);
 		final BagOfVisualWordsExtractor extractor = new BagOfVisualWordsExtractor(bovw, assigner);
 
 		// Create and train a linear classifier.
-		System.out.println("Start training...");
+		ClassifierUtils.parallelAwarePrintln(this, "Start training...");
 		annotator = new LiblinearAnnotator<FImage, String>(extractor, LiblinearAnnotator.Mode.MULTICLASS, SolverType.L2R_L2LOSS_SVC, 1.0, 0.00001);
 		annotator.train(trainingSet);
 
-		System.out.println("Training finished.");
+		ClassifierUtils.parallelAwarePrintln(this, "Training finished.");
 	}
 
 
@@ -83,9 +84,10 @@ public class LinearClassifier extends AbstractClassifier
 	/**
 	 * Build a HardAssigner based on k-means ran on randomly picked patches from images.
 	 *
+	 * @param instance
 	 * @param sample The dataset to use for creating the HardAssigner.
 	 */
-	private static HardAssigner<float[], float[], IntFloatPair> trainQuantiser(Dataset<FImage> sample)
+	private static HardAssigner<float[], float[], IntFloatPair> trainQuantiser(final LinearClassifier instance, Dataset<FImage> sample)
 	{
 		final List<float[]> allkeys = new ArrayList<float[]>();
 
@@ -93,7 +95,7 @@ public class LinearClassifier extends AbstractClassifier
 		for (final FImage image : sample)
 		{
 			final List<LocalFeature<SpatialLocation, FloatFV>> sampleList = extract(image, STEP, PATCH_SIZE);
-			System.out.println(sampleList.size());
+			ClassifierUtils.parallelAwarePrintln(instance, String.valueOf(sampleList.size()));
 
 			for (final LocalFeature<SpatialLocation, FloatFV> lf : sampleList)
 			{
@@ -106,9 +108,9 @@ public class LinearClassifier extends AbstractClassifier
 		final float[][] data = allkeys.toArray(A);
 
 		// Clustering using K-means.
-		System.out.println("Start clustering.");
+		ClassifierUtils.parallelAwarePrintln(instance, "Start clustering.");
 		final FloatCentroidsResult result = km.cluster(data);
-		System.out.println("Clustering finished.");
+		ClassifierUtils.parallelAwarePrintln(instance, "Clustering finished.");
 
 		return result.defaultHardAssigner();
 	}

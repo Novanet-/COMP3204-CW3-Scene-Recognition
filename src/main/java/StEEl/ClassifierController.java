@@ -24,6 +24,10 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static StEEl.ClassifierUtils.parallelAwarePrintln;
 
 class ClassifierController
 {
@@ -58,18 +62,23 @@ class ClassifierController
 			this.consoleOutput = consoleOutputArg;
 			this.writeSubmissionFile = writeSubmissionFileArg;
 
+			ExecutorService executor = Executors.newCachedThreadPool();
+
 			initialiseData();
 
 			final IClassifier run1TinyImage = new TinyImageClassifier(1);
 			final IClassifier run2LinearClassifier = new LinearClassifier(2);
 			final IClassifier run3ComplexClassifier = new ComplexClassifier(3);
 
-			runClassifier(run1TinyImage);
-			runClassifier(run2LinearClassifier);
-			runClassifier(run3ComplexClassifier);
+			final Runnable c1task = () -> runClassifierTask(run1TinyImage);
+			final Runnable c2task = () -> runClassifierTask(run2LinearClassifier);
+			final Runnable c3task = () -> runClassifierTask(run3ComplexClassifier);
 
+			executor.execute(c1task);
+			executor.execute(c2task);
+			executor.execute(c3task);
 		}
-		catch (final IOException | ClassifierException e)
+		catch (final IOException e)
 		{
 			e.printStackTrace();
 		}
@@ -100,6 +109,19 @@ class ClassifierController
 	}
 
 
+	private void runClassifierTask(final IClassifier classifier)
+	{
+		try
+		{
+			runClassifier(classifier);
+		}
+		catch (ClassifierException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+
 	/**
 	 * @param instance
 	 * @throws ClassifierException
@@ -107,14 +129,14 @@ class ClassifierController
 	private void runClassifier(IClassifier instance) throws ClassifierException
 	{
 
-		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData();
-		final VFSListDataset<FImage> testData = createTestDataset();
+		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData(instance);
+		final VFSListDataset<FImage> testData = createTestDataset(instance);
 
-		System.out.println("Training dataset loaded. Staring training...");
+		parallelAwarePrintln(instance, "Training dataset loaded. Staring training...");
 
 		trainClassifer(instance, trainingData);
 
-		System.out.println("Training complete. Now predicting... (progress on stderr, output on stout)");
+		parallelAwarePrintln(instance, "Training complete. Now predicting... (progress on stderr, output on stout)");
 
 		testClassifier(instance, testData);
 		evaluateClassifier(instance, trainingData);
@@ -123,10 +145,11 @@ class ClassifierController
 
 
 	/**
+	 * @param instance
 	 * @return
 	 * @throws Exception
 	 */
-	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData()
+	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData(final IClassifier instance)
 	{
 		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
@@ -139,17 +162,18 @@ class ClassifierController
 		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
 		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
 
-		System.out.println("Training set size = " + trainingDataSize);
-		//			System.out.println("Control set size = " + controlData.size());
+		parallelAwarePrintln(instance, "Training set size = " + trainingDataSize);
+		//			ClassifierUtils.parallelAwarePrintln("Control set size = " + controlData.size());
 		return newTrainingDataset;
 	}
 
 
 	/**
+	 * @param instance
 	 * @return
 	 * @throws Exception
 	 */
-	private VFSListDataset<FImage> createTestDataset() throws ClassifierException
+	private VFSListDataset<FImage> createTestDataset(final IClassifier instance) throws ClassifierException
 	{
 		//		UniformRandomisedSampler<FImage> listSampler = new UniformRandomisedSampler<FImage>(0.8d);
 		//
@@ -163,7 +187,7 @@ class ClassifierController
 			throw new ClassifierException("Error loading test dataset");
 		}
 
-		System.out.println("Test set size = " + testData.size());
+		parallelAwarePrintln(instance, "Test set size = " + testData.size());
 		return testData;
 	}
 
@@ -188,14 +212,15 @@ class ClassifierController
 		{
 			File submissionFile = new File(System.getProperty("user.dir") + "default.txt");
 			submissionFile = setSubmissionFileLocation(instance, submissionFile);
+			Files.deleteIfExists(submissionFile.toPath());
 			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.CREATE);
-			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.WRITE);
+			//			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.WRITE);
 
 			for (int j = 0; j < testData.size(); j++)
 			{
 				classifyImage(instance, testData, submissionFile, j);
 			}
-			System.out.println("\n Done.");
+			parallelAwarePrintln(instance, "\n Done.");
 		}
 		catch (ClassifierException | IOException e)
 		{
@@ -219,7 +244,7 @@ class ClassifierController
 		{
 			final CMResult<String> result = evaluator.analyse(guesses);
 
-			System.out.println(result.getDetailReport());
+			parallelAwarePrintln(instance, result.getDetailReport());
 		}
 	}
 
@@ -279,7 +304,7 @@ class ClassifierController
 		final ClassificationResult<String> predicted = instance.classify(img);
 		if (consoleOutput)
 		{
-			printTestProgress(testDatasetToClassify, j, filename, predicted);
+			printTestProgress(instance, testDatasetToClassify, j, filename, predicted);
 		}
 		if (writeSubmissionFile)
 		{
@@ -290,27 +315,21 @@ class ClassifierController
 
 
 	/**
+	 * @param instance
 	 * @param classifiedTestDataset
 	 * @param j
 	 * @param file
 	 * @param predicted
 	 */
-	private static void printTestProgress(final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file, final ClassificationResult<String> predicted)
+	private static void printTestProgress(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
+			final ClassificationResult<String> predicted)
 	{
 		if (predicted != null)
 		{
 			final Set<String> predictedClasses = predicted.getPredictedClasses();
 			final String[] classes = predictedClasses.toArray(new String[predictedClasses.size()]);
 
-			System.out.print(file);
-			System.out.print(" ");
-			for (final String cls : classes)
-			{
-				System.out.print(cls);
-				System.out.print(" ");
-			}
-			System.out.println();
-			System.out.printf("\r %d %%  ", Math.round(((double) (j + 1) * 100.0) / (double) classifiedTestDataset.size()));
+			buildAndPrintProgressString(instance, classifiedTestDataset, j, file, classes);
 
 		}
 	}
@@ -349,6 +368,31 @@ class ClassifierController
 		else
 		{
 		}
+	}
+
+
+	private static void buildAndPrintProgressString(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
+			final String[] classes)
+	{
+		StringBuilder sb = new StringBuilder();
+		sb.append(file).append(" ");
+
+		for (final String cls : classes)
+		{
+			sb.append(cls);
+			sb.append(" ");
+		}
+		sb.append(System.lineSeparator());
+		try
+		{
+			sb.append("\r").append("[").append(instance.getClassifierID()).append("] -- ").append(Math.round(((j + 1) * 100.0) / classifiedTestDataset.size())).append(" %  ");
+		}
+		catch (ClassifierException e)
+		{
+			e.printStackTrace();
+		}
+
+		System.out.print(sb);
 	}
 
 }
