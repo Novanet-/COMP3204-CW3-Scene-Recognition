@@ -1,10 +1,11 @@
 package StEEl;
 
-/**
- * Created by Will on 09/12/2016.
- */
-public class ClassifierException extends Exception
+
+class ClassifierException extends Exception
 {
+
+	private static final long serialVersionUID = -8616754876453352548L;
+
 
 	public ClassifierException(String message)
 	{

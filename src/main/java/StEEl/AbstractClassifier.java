@@ -1,13 +1,5 @@
 package StEEl;
 
-import org.openimaj.data.dataset.GroupedDataset;
-import org.openimaj.data.dataset.ListDataset;
-import org.openimaj.experiment.evaluation.classification.ClassificationResult;
-import org.openimaj.image.FImage;
-
-/**
- * Created by Will on 09/12/2016.
- */
 public abstract class AbstractClassifier implements IClassifier
 {
 
@@ -16,18 +8,8 @@ public abstract class AbstractClassifier implements IClassifier
 
 	protected AbstractClassifier(int classifierID)
 	{
-		super();
 		this.classifierID = classifierID;
 	}
-
-
-	/**
-	 * Train the classifier with a training set
-	 *
-	 * @param trainingSet
-	 */
-	@Override
-	public abstract void train(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet);
 
 
 	/**
@@ -36,7 +18,7 @@ public abstract class AbstractClassifier implements IClassifier
 	 * @return
 	 */
 	@Override
-	public int getClassifierID() throws ClassifierException
+	public final int getClassifierID() throws ClassifierException
 	{
 		if (classifierID == 0)
 		{
@@ -48,13 +30,4 @@ public abstract class AbstractClassifier implements IClassifier
 		}
 	}
 
-
-	/**
-	 * Classify an object.
-	 *
-	 * @param object the object to classify.
-	 * @return classes and scores for the object.
-	 */
-	@Override
-	public abstract ClassificationResult<String> classify(final FImage object);
 }

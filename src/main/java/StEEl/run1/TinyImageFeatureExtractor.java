@@ -12,11 +12,12 @@ import org.openimaj.util.array.ArrayUtils;
 class TinyImageFeatureExtractor implements FeatureExtractor<DoubleFV, FImage>
 {
 
-	private float squareSize;
+	private final float squareSize;
 
 
-	public TinyImageFeatureExtractor(final float squareSize)
+	TinyImageFeatureExtractor(final float squareSize)
 	{
+		super();
 		this.squareSize = squareSize;
 	}
 

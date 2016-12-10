@@ -12,7 +12,7 @@ public class AppTest {
      * Rigourous Test :-)
      */
 	@Test
-    public void testApp() {
+    public final void testApp() {
         assertTrue( true );
     }
 }

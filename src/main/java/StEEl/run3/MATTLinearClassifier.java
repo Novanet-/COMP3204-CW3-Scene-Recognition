@@ -16,6 +16,7 @@ import org.openimaj.feature.local.list.LocalFeatureList;
 import org.openimaj.image.FImage;
 import org.openimaj.image.feature.local.aggregate.BagOfVisualWords;
 import org.openimaj.image.feature.local.engine.DoGSIFTEngine;
+import org.openimaj.image.feature.local.engine.Engine;
 import org.openimaj.image.feature.local.keypoints.Keypoint;
 import org.openimaj.ml.annotation.ScoredAnnotation;
 import org.openimaj.ml.annotation.linear.LiblinearAnnotator;
@@ -26,14 +27,12 @@ import org.openimaj.ml.clustering.kmeans.ByteKMeans;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by Matt on 2016-12-07.
- */
+
 public class MATTLinearClassifier extends AbstractClassifier
 {
 
-	private LiblinearAnnotator<FImage, String> annotator;
-	private FeatureExtractor                   extractor;
+	private LiblinearAnnotator<FImage, String> annotator = null;
+	private FeatureExtractor                   extractor = null;
 
 
 	public MATTLinearClassifier(int id)
@@ -48,7 +47,7 @@ public class MATTLinearClassifier extends AbstractClassifier
 		final GroupedDataset<String, ListDataset<LocalFeatureList<Keypoint>>, LocalFeatureList<Keypoint>> gds = new MapBackedDataset<>();
 		LocalFeatureList<Keypoint> featureList = null;
 
-		final DoGSIFTEngine engine = new DoGSIFTEngine();
+		final Engine<Keypoint, FImage> engine = new DoGSIFTEngine();
 		final ListDataset<LocalFeatureList<Keypoint>> features = new ListBackedDataset<>();
 
 		for (final Map.Entry<String, ListDataset<FImage>> stringListDatasetEntry : trainingSet.entrySet())
@@ -56,7 +55,7 @@ public class MATTLinearClassifier extends AbstractClassifier
 
 			for (final FImage image : stringListDatasetEntry.getValue())
 			{
-				LocalFeatureList<Keypoint> f = engine.findFeatures(image);
+				final LocalFeatureList<Keypoint> f = engine.findFeatures(image);
 
 				features.add(f);
 
@@ -80,19 +79,19 @@ public class MATTLinearClassifier extends AbstractClassifier
 
 		final BagOfVisualWords<byte[]> bovw = new BagOfVisualWords<>(assigner);
 
-		FeatureExtractor<SparseIntFV, FImage> extractor = new MATTBagOfVisualWordsExtractor(bovw);
-		annotator = new LiblinearAnnotator<>(extractor, LiblinearAnnotator.Mode.MULTILABEL, SolverType.L1R_L2LOSS_SVC, 1, 0.00001);
+		final FeatureExtractor<SparseIntFV, FImage> extractor = new MATTBagOfVisualWordsExtractor(bovw);
+		annotator = new LiblinearAnnotator<>(extractor, LiblinearAnnotator.Mode.MULTILABEL, SolverType.L1R_L2LOSS_SVC, 1.0, 0.00001);
 		annotator.train(trainingSet);
 	}
 
 
 	@Override
-	public ClassificationResult<String> classify(FImage object)
+	public final ClassificationResult<String> classify(FImage object)
 	{
-		List<ScoredAnnotation<String>> guess = annotator.annotate(object);
+		final List<ScoredAnnotation<String>> guess = annotator.annotate(object);
 
 		ScoredAnnotation<String> mostConfident = guess.get(0);
-		for (ScoredAnnotation<String> score : guess)
+		for (final ScoredAnnotation<String> score : guess)
 		{
 			if (score.confidence < mostConfident.confidence)
 			{

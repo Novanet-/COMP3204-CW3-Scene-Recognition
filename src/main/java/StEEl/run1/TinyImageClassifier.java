@@ -17,17 +17,17 @@ import java.util.*;
 public class TinyImageClassifier extends AbstractClassifier
 {
 
-	public static final double[][] featureArray = {};
+	private static final double[][] featureArray = {};
 
 	//Dimension of tiny image
-	protected static final float SQUARE_SIZE = 16.0F;
+	private static final float SQUARE_SIZE = 16.0F;
 	//Number of nearest neighbours to considers
-	private static final   int   K_VALUE     = 15;
+	private static final int   K_VALUE     = 15;
 
-	private DoubleNearestNeighboursExact knn;
+	private DoubleNearestNeighboursExact knn = null;
 
 	//The classes of the training feature vectors (array indices correspond to featureVector indices)
-	private List<String> classes;
+	private List<String> classes = null;
 
 
 	public TinyImageClassifier(final int classifierID)

@@ -1,7 +1,7 @@
 package StEEl;
 
 import StEEl.run1.TinyImageClassifier;
-import StEEl.run3.MATTLinearClassifier;
+import StEEl.run2.LinearClassifier;
 import StEEl.run3.ComplexClassifier;
 import org.apache.commons.vfs2.FileSystemException;
 import org.openimaj.data.dataset.GroupedDataset;
@@ -25,7 +25,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.Set;
 
-public class ClassifierController
+class ClassifierController
 {
 
 	private static final String CURRENT_WORKING_DIRECTORY = System.getProperty("user.dir");
@@ -36,19 +36,19 @@ public class ClassifierController
 	//	private static final File   TRAINING_DATA_DIRECTORY   = new File("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\training.zip");
 	private static final File   TESTING_DATA_DIRECTORY    = new File(CURRENT_WORKING_DIRECTORY + "/testing/");
 
-	private final int TINYIMAGE_ID = 1;
-	private final int LINEAR_ID    = 2;
-	private final int COMPLEX_ID   = 3;
+	private static final int                                                    TINYIMAGE_ID        = 1;
+	private static final int                                                    LINEAR_ID           = 2;
+	private static final int                                                    COMPLEX_ID          = 3;
 	//	private static final File   TESTING_DATA_DIRECTORY    = new File("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\testing.zip");
-	private GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingDataset;
-	private VFSListDataset<FImage>                                 testDataset;
-	private VFSListDataset<FImage>                                 controlDataset;
-	private boolean                                                consoleOutput;
-	private boolean                                                writeSubmissionFile;
+	private              GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingDataset     = null;
+	private              VFSListDataset<FImage>                                 testDataset         = null;
+	private              boolean                                                consoleOutput       = false;
+	private              boolean                                                writeSubmissionFile = false;
 
 
 	/**
-	 *
+	 * @param consoleOutputArg
+	 * @param writeSubmissionFileArg
 	 */
 	@SuppressWarnings("OverlyBroadCatchBlock")
 	public final void runClassifiers(boolean consoleOutputArg, boolean writeSubmissionFileArg)
@@ -61,10 +61,10 @@ public class ClassifierController
 			initialiseData();
 
 			final IClassifier run1TinyImage = new TinyImageClassifier(1);
-			final IClassifier run2LinearClassifier = new MATTLinearClassifier(2);
+			final IClassifier run2LinearClassifier = new LinearClassifier(2);
 			final IClassifier run3ComplexClassifier = new ComplexClassifier(3);
 
-//			runClassifier(run1TinyImage);
+			runClassifier(run1TinyImage);
 			runClassifier(run2LinearClassifier);
 			runClassifier(run3ComplexClassifier);
 
@@ -80,7 +80,7 @@ public class ClassifierController
 	 * @throws IOException
 	 * @throws FileSystemException
 	 */
-	private void initialiseData() throws IOException
+	private void initialiseData() throws IOException, FileSystemException
 	{
 		if (!TRAINING_DATA_DIRECTORY.exists())
 		{
@@ -93,7 +93,6 @@ public class ClassifierController
 
 		trainingDataset = new VFSGroupDataset<FImage>(TRAINING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
 		testDataset = new VFSListDataset<FImage>(TESTING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
-		controlDataset = new VFSListDataset<FImage>(TRAINING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
 
 		//		trainingDataset = new VFSGroupDataset<FImage>("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\training.zip",
 		//				ImageUtilities.FIMAGE_READER);
@@ -102,12 +101,13 @@ public class ClassifierController
 
 
 	/**
-	 *
+	 * @param instance
+	 * @throws ClassifierException
 	 */
 	private void runClassifier(IClassifier instance) throws ClassifierException
 	{
 
-		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData();
+		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData();
 		final VFSListDataset<FImage> testData = createTestDataset();
 
 		System.out.println("Training dataset loaded. Staring training...");
@@ -128,21 +128,20 @@ public class ClassifierController
 	 */
 	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData()
 	{
-		GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
+		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
 		// Sample all data so we have a GroupedDataset<String, ListDataset<FImage>, FImage>, and not a group with a VFSListDataset.
 		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
-		GroupedDataset<String, ListDataset<FImage>, FImage> validationData;
 
 		final int trainingDataSize = trainingData.size();
-		GroupedRandomSplitter<String, FImage> trainingSplitter = splitTrainingData(trainingData, trainingDataSize);
+		final GroupedRandomSplitter<String, FImage> trainingSplitter = splitTrainingData(trainingData, (double) trainingDataSize);
 
-		trainingData = trainingSplitter.getTrainingDataset();
-		validationData = trainingSplitter.getValidationDataset();
+		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
+		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
 
 		System.out.println("Training set size = " + trainingDataSize);
 		//			System.out.println("Control set size = " + controlData.size());
-		return trainingData;
+		return newTrainingDataset;
 	}
 
 
@@ -173,7 +172,7 @@ public class ClassifierController
 	 * @param instance
 	 * @param trainingData
 	 */
-	private void trainClassifer(final IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
+	private static void trainClassifer(final IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
 	{
 		instance.train(trainingData);
 	}
@@ -209,16 +208,16 @@ public class ClassifierController
 	 * @param instance
 	 * @param trainingData
 	 */
-	private void evaluateClassifier(final IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
+	private static void evaluateClassifier(final IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
 	{
 		//			 OpenIMAJ evaluation method.
-		ClassificationEvaluator<CMResult<String>, String, FImage> evaluator;
-		evaluator = new ClassificationEvaluator<CMResult<String>, String, FImage>(instance, trainingData, new CMAnalyser<FImage, String>(CMAnalyser.Strategy.SINGLE));
+		final ClassificationEvaluator<CMResult<String>, String, FImage> evaluator = new ClassificationEvaluator<CMResult<String>, String, FImage>(instance, trainingData,
+				new CMAnalyser<FImage, String>(CMAnalyser.Strategy.SINGLE));
 
-		Map<FImage, ClassificationResult<String>> guesses = evaluator.evaluate();
+		final Map<FImage, ClassificationResult<String>> guesses = evaluator.evaluate();
 		if (guesses.get(guesses.keySet().toArray()[0]) != null) //Complex null checking
 		{
-			CMResult<String> result = evaluator.analyse(guesses);
+			final CMResult<String> result = evaluator.analyse(guesses);
 
 			System.out.println(result.getDetailReport());
 		}
@@ -230,7 +229,8 @@ public class ClassifierController
 	 * @param trainingDataSize
 	 * @return
 	 */
-	private GroupedRandomSplitter<String, FImage> splitTrainingData(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData, final double trainingDataSize)
+	private static GroupedRandomSplitter<String, FImage> splitTrainingData(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData,
+			final double trainingDataSize)
 	{
 		final int PERCENT80 = (int) Math.round(trainingDataSize * 0.8);
 		final int PERCENT20 = (int) Math.round(trainingDataSize * 0.2);
@@ -238,45 +238,64 @@ public class ClassifierController
 	}
 
 
-	private File setSubmissionFileLocation(final IClassifier instance, File submissionFile) throws ClassifierException
+	/**
+	 * @param instance
+	 * @param tempSubmissionFile
+	 * @return
+	 * @throws ClassifierException
+	 */
+	private File setSubmissionFileLocation(final IClassifier instance, File tempSubmissionFile) throws ClassifierException
 	{
 		switch (instance.getClassifierID())
 		{
 			case TINYIMAGE_ID:
-				submissionFile = RUN_1_FILE;
+				tempSubmissionFile = RUN_1_FILE;
 				break;
 			case LINEAR_ID:
-				submissionFile = RUN_2_FILE;
+				tempSubmissionFile = RUN_2_FILE;
 				break;
 			case COMPLEX_ID:
-				submissionFile = RUN_3_FILE;
+				tempSubmissionFile = RUN_3_FILE;
 				break;
 			default:
 				throw new ClassifierException("Undefined classifier ID");
 
 		}
-		return submissionFile;
+		return tempSubmissionFile;
 	}
 
 
-	private void classifyImage(final IClassifier instance, final VFSListDataset<FImage> testDataset, final File submissionFile, final int j)
+	/**
+	 * @param instance
+	 * @param testDatasetToClassify
+	 * @param submissionFile
+	 * @param j
+	 */
+	private void classifyImage(final IClassifier instance, final VFSListDataset<FImage> testDatasetToClassify, final File submissionFile, final int j)
 	{
-		final FImage img = testDataset.get(j);
-		final String filename = testDataset.getID(j);
+		final FImage img = testDatasetToClassify.get(j);
+		final String filename = testDatasetToClassify.getID(j);
 
 		final ClassificationResult<String> predicted = instance.classify(img);
 		if (consoleOutput)
 		{
-			printTestProgress(testDataset, j, filename, predicted);
+			printTestProgress(testDatasetToClassify, j, filename, predicted);
 		}
 		if (writeSubmissionFile)
 		{
-			writeResult(submissionFile, filename, predicted);
+			new Thread(() -> writeResult(submissionFile, filename, predicted)).start();
+			//			writeResult(submissionFile, filename, predicted);
 		}
 	}
 
 
-	private void printTestProgress(final VFSListDataset<FImage> testDataset, final int j, final String file, final ClassificationResult<String> predicted)
+	/**
+	 * @param classifiedTestDataset
+	 * @param j
+	 * @param file
+	 * @param predicted
+	 */
+	private static void printTestProgress(final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file, final ClassificationResult<String> predicted)
 	{
 		if (predicted != null)
 		{
@@ -291,7 +310,7 @@ public class ClassifierController
 				System.out.print(" ");
 			}
 			System.out.println();
-			System.out.printf("\r %d %%  ", Math.round(((double) (j + 1) * 100.0) / (double) testDataset.size()));
+			System.out.printf("\r %d %%  ", Math.round(((double) (j + 1) * 100.0) / (double) classifiedTestDataset.size()));
 
 		}
 	}
@@ -302,7 +321,7 @@ public class ClassifierController
 	 * @param imageName
 	 * @param predictedImageClasses
 	 */
-	private void writeResult(File file, String imageName, ClassificationResult<String> predictedImageClasses)
+	private static void writeResult(File file, String imageName, ClassificationResult<String> predictedImageClasses)
 	{
 		if (predictedImageClasses != null)
 		{
@@ -311,7 +330,7 @@ public class ClassifierController
 
 			try
 			{
-				StringBuilder sb = new StringBuilder();
+				final StringBuilder sb = new StringBuilder();
 				sb.append(imageName).append(' ');
 				for (final String cls : classes)
 				{
@@ -322,7 +341,7 @@ public class ClassifierController
 				Files.write(file.toPath(), sb.toString().getBytes(), StandardOpenOption.APPEND);
 				//			throw new UnsupportedOperationException();
 			}
-			catch (IOException e)
+			catch (final IOException e)
 			{
 				e.printStackTrace();
 			}
@@ -331,19 +350,6 @@ public class ClassifierController
 		{
 		}
 	}
-
-	//	/**
-	//	 * @param file
-	//	 * @param predictions
-	//	 */
-	//	private void recordResults(File file, Map<FImage, ClassificationResult<String>> predictions)
-	//	{
-	//		for (final Map.Entry<FImage, ClassificationResult<String>> entry : predictions.entrySet())
-	//		{
-	//			writeResult(file, entry.getKey().toString(), entry.getValue().toString());
-	//		}
-	//
-	//	}
 
 }
 

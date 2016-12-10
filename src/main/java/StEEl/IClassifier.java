@@ -8,7 +8,7 @@ import org.openimaj.image.FImage;
 /**
  *
  */
-public interface IClassifier extends Classifier<String, FImage>
+interface IClassifier extends Classifier<String, FImage>
 {
 
 	/**
@@ -16,9 +16,9 @@ public interface IClassifier extends Classifier<String, FImage>
 	 *
 	 * @param trainingSet
 	 */
-	public void train(GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet);
+	void train(GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet);
 
-	public int getClassifierID() throws ClassifierException;
+	int getClassifierID() throws ClassifierException;
 
 }
 

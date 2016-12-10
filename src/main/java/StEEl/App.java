@@ -3,11 +3,11 @@ package StEEl;
 /**
  * OpenIMAJ Hello world!
  */
-public class App
+class App
 {
 
-	static boolean writeSubmissionFileArg = true;
-	static boolean consoleOutputArg       = true;
+	private static final boolean writeSubmissionFileArg = true;
+	private static final boolean consoleOutputArg       = true;
 
 
 	private App() {}
