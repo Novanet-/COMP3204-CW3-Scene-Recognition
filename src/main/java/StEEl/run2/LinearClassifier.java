@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
+ * Created by Matt on 2016-12-07.
  */
 public class LinearClassifier extends AbstractClassifier
 {
@@ -48,13 +48,8 @@ public class LinearClassifier extends AbstractClassifier
 	}
 
 
-	/**
-	 * Train the classifier with a training set
-	 *
-	 * @param trainingSet
-	 */
 	@Override
-	public void train(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
+	public final void train(GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
 	{
 		// build vocabulary using images from all classes.
 		GroupedRandomSplitter<String, FImage> rndspl = new GroupedRandomSplitter<String, FImage>(trainingSet, IMAGES_FOR_VOCABULARY, 0, 0);

@@ -45,21 +45,6 @@ public class BagOfVisualWordsExtractor implements FeatureExtractor<DoubleFV, FIm
 	@Override
 	public DoubleFV extractFeature(FImage image)
 	{
-		//        //Find the keypoints
-		//        LocalFeatureList<Keypoint> keypoints = engine.findFeatures(object);
-		//
-		//        //Convert them into the right output format with relation to the bovw
-		//        SparseIntFV intFV = bovw.aggregate(keypoints);
-		//
-		//        float[] vals = new float[intFV.length()];
-		//        double[] asDouble = intFV.asDoubleVector();
-		//
-		//        for (int i = 0; i < intFV.length(); i++) {
-		//            vals[i] = (float) asDouble[i];
-		//        }
-		//
-		//        return new SparseFloatFV(vals);
-
 		BagOfVisualWords<float[]> bovw = new BagOfVisualWords<float[]>(assigner);
 		BlockSpatialAggregator<float[], SparseIntFV> spatial = new BlockSpatialAggregator<float[], SparseIntFV>(bovw, 2, 2);
 		return spatial.aggregate(extract(image, STEP, PATCH_SIZE), image.getBounds()).normaliseFV();
