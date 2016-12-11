@@ -156,19 +156,6 @@ class ClassifierController
 	}
 
 
-	private void runClassifierTask(final IClassifier classifier)
-	{
-		try
-		{
-			runClassifier(classifier);
-		}
-		catch (ClassifierException e)
-		{
-			e.printStackTrace();
-		}
-	}
-
-
 	/**
 	 * Runs the classifier, training it, testing it, then evaluating it
 	 *
@@ -266,9 +253,10 @@ class ClassifierController
 				classifyExecutor.execute(() -> classifyImage(instance, testData, finalSubmissionFile, finalJ));
 			}
 
-			//Awaits on classificaiton of all images in the testing set (timeout 20 minutes)
+			//Awaits on classification of all images in the testing set (timeout 20 minutes)
 			classifyExecutor.shutdown();
-			
+			classifyExecutor.awaitTermination(20, TimeUnit.MINUTES);
+
 			parallelAwarePrintln(instance, "\n Done.");
 		}
 		catch (ClassifierException | IOException | InterruptedException e)
@@ -279,7 +267,9 @@ class ClassifierController
 
 
 	/**
-	 * @param instance
+	 * Evaluates the performance and accuracy of the classifier with the validation data it sampled earlier
+	 *
+	 * @param instance     The current classifier instance
 	 * @param trainingData
 	 */
 	private static void evaluateClassifier(final IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
@@ -299,6 +289,8 @@ class ClassifierController
 
 
 	/**
+	 * 80% of the training dataset is randomly selected as the trianing data, the other 20% is selected as validation data for use in the evaluator
+	 *
 	 * @param trainingData
 	 * @param trainingDataSize
 	 * @return
@@ -313,12 +305,14 @@ class ClassifierController
 
 
 	/**
-	 * @param instance
+	 * Select the correct submission filename based on the current classifier
+	 *
+	 * @param instance           The current classifier instance
 	 * @param tempSubmissionFile
 	 * @return
 	 * @throws ClassifierException
 	 */
-	private File setSubmissionFileLocation(final IClassifier instance, File tempSubmissionFile) throws ClassifierException
+	private static File setSubmissionFileLocation(final IClassifier instance, File tempSubmissionFile) throws ClassifierException
 	{
 		switch (instance.getClassifierID())
 		{
@@ -340,7 +334,10 @@ class ClassifierController
 
 
 	/**
-	 * @param instance
+	 * Applies the classifiers "classify()" method to an image, prediciting its image class
+	 * Then writes this to console and submission file, if these options are enabled
+	 *
+	 * @param instance              The current classifier instance
 	 * @param testDatasetToClassify
 	 * @param submissionFile
 	 * @param j
@@ -362,7 +359,6 @@ class ClassifierController
 			if (writeSubmissionFile)
 			{
 				printExecutor.execute(() -> writeResult(submissionFile, filename, predicted));
-				//			writeResult(submissionFile, filename, predicted);
 			}
 			printExecutor.shutdown();
 			printExecutor.awaitTermination(10, TimeUnit.SECONDS);
@@ -375,7 +371,9 @@ class ClassifierController
 
 
 	/**
-	 * @param instance
+	 * Output assembler for console output
+	 *
+	 * @param instance              The current classifier instance
 	 * @param classifiedTestDataset
 	 * @param j
 	 * @param file
@@ -396,6 +394,8 @@ class ClassifierController
 
 
 	/**
+	 * Writes a line of the submission file, using the name of the image, and its predicted class
+	 *
 	 * @param file
 	 * @param imageName
 	 * @param predictedImageClasses
@@ -418,7 +418,6 @@ class ClassifierController
 				}
 				sb.append(System.lineSeparator());
 				Files.write(file.toPath(), sb.toString().getBytes(), StandardOpenOption.APPEND);
-				//			throw new UnsupportedOperationException();
 			}
 			catch (final IOException e)
 			{
@@ -431,6 +430,15 @@ class ClassifierController
 	}
 
 
+	/**
+	 * String builder for console output, using image name and predicted class
+	 *
+	 * @param instance              The current classifier instance
+	 * @param classifiedTestDataset
+	 * @param j
+	 * @param file
+	 * @param classes
+	 */
 	private static void buildAndPrintProgressString(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
 			final String[] classes)
 	{
