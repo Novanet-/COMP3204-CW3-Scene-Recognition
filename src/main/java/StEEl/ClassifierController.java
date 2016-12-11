@@ -156,6 +156,19 @@ class ClassifierController
 	}
 
 
+	private void runClassifierTask(final IClassifier classifier)
+	{
+		try
+		{
+			runClassifier(classifier);
+		}
+		catch (ClassifierException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+
 	/**
 	 * Runs the classifier, training it, testing it, then evaluating it
 	 *
