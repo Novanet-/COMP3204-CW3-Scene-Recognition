@@ -353,13 +353,16 @@ class ClassifierController
 			ExecutorService printExecutor = Executors.newCachedThreadPool();
 
 			final ClassificationResult<String> predicted = instance.classify(img);
-			if (consoleOutput)
+			if (predicted != null)
 			{
-				printExecutor.execute(() -> printTestProgress(instance, testDatasetToClassify, j, filename, predicted));
-			}
-			if (writeSubmissionFile)
-			{
-				printExecutor.execute(() -> writeResult(submissionFile, filename, predicted));
+				if (consoleOutput)
+				{
+					printExecutor.execute(() -> printTestProgress(instance, testDatasetToClassify, j, filename, predicted));
+				}
+				if (writeSubmissionFile)
+				{
+					printExecutor.execute(() -> writeResult(submissionFile, filename, predicted));
+				}
 			}
 			printExecutor.shutdown();
 			printExecutor.awaitTermination(10, TimeUnit.SECONDS);
