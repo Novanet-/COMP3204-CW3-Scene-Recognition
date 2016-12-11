@@ -58,7 +58,7 @@ public class LinearClassifier extends AbstractClassifier
 
 		// create FeatureExtractor.
 		final BagOfVisualWords<float[]> bovw = new BagOfVisualWords<float[]>(assigner);
-		final BagOfVisualWordsExtractor extractor = new BagOfVisualWordsExtractor(bovw, assigner);
+		final BagOfVisualWordsExtractor extractor = new BagOfVisualWordsExtractor(assigner);
 
 		// Create and train a linear classifier.
 		ClassifierUtils.parallelAwarePrintln(this, "Start training...");
@@ -129,7 +129,7 @@ public class LinearClassifier extends AbstractClassifier
 	 * @param step       The step size.
 	 * @param patch_size The size of the patches.
 	 */
-	private static List<LocalFeature<SpatialLocation, FloatFV>> extract(FImage image, float step, float patch_size)
+	protected static List<LocalFeature<SpatialLocation, FloatFV>> extract(FImage image, float step, float patch_size)
 	{
 		final List<LocalFeature<SpatialLocation, FloatFV>> areaList = new ArrayList<LocalFeature<SpatialLocation, FloatFV>>();
 
