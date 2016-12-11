@@ -19,6 +19,7 @@ class App
 	public static void main(String[] args)
 	{
 		final ClassifierController classifiers = new ClassifierController();
+		//Parameters might be changed to console arguments later, for now they are both true, console and file output is enabled
 		classifiers.runClassifiers(consoleOutputArg, writeSubmissionFileArg);
 	}
 

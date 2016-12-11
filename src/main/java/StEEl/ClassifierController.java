@@ -64,27 +64,35 @@ class ClassifierController
 			this.consoleOutput = consoleOutputArg;
 			this.writeSubmissionFile = writeSubmissionFileArg;
 
+			//Create an executor service for running the 3 classifiers in parallel
 			topExecutor = Executors.newCachedThreadPool();
 
+			//Create training/testing datasets
 			initialiseData();
 
+			//Creates instances of the three classifiers, give them each a unique number to identify them
 			final IClassifier run1TinyImage = new TinyImageClassifier(1);
 			final IClassifier run2LinearClassifier = new LinearClassifier(2);
 			final IClassifier run3ComplexClassifier = new ComplexClassifier(3);
 
+			//Construct async tasks(runnables) for each classifier
 			final Runnable c1task = () -> runClassifierTask(run1TinyImage);
 			final Runnable c2task = () -> runClassifierTask(run2LinearClassifier);
 			final Runnable c3task = () -> runClassifierTask(run3ComplexClassifier);
 
 			//Asynchronous execution
-			//			topExecutor.execute(c1task);
-			//			topExecutor.execute(c2task);
-			//			topExecutor.execute(c3task);
-			//
-			//			topExecutor.shutdown();
-			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 
-			//Synchronouss execution
+/*			//Use the executor to invoke each classifier task, these are executed in parallel to each other
+			topExecutor.execute(c1task);
+			topExecutor.execute(c2task);
+			topExecutor.execute(c3task);
+			//
+			//Orders the executor to finish all tasks, will give it 20 minutes to complete execution, at which point is will force shutdown their threads
+			topExecutor.shutdown();
+			topExecutor.awaitTermination(20, TimeUnit.MINUTES);*/
+
+			//Synchronous execution
+			//Execute each tasks one at a time, waiting for each one to finish before invoking the next
 			topExecutor.execute(c1task);
 			topExecutor.shutdown();
 			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
@@ -109,6 +117,8 @@ class ClassifierController
 
 
 	/**
+	 * Creates the data structures containing the testing/training images
+	 *
 	 * @throws IOException
 	 * @throws FileSystemException
 	 */
@@ -125,13 +135,14 @@ class ClassifierController
 
 		trainingDataset = new VFSGroupDataset<FImage>(TRAINING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
 		testDataset = new VFSListDataset<FImage>(TESTING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
-
-		//		trainingDataset = new VFSGroupDataset<FImage>("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\training.zip",
-		//				ImageUtilities.FIMAGE_READER);
-		//		testDataset = new VFSGroupDataset<FImage>("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\testing.zip", ImageUtilities.FIMAGE_READER);
 	}
 
 
+	/**
+	 * Wrapper for "runclassifier()" to include ClassiferException catching
+	 *
+	 * @param classifier
+	 */
 	private void runClassifierTask(final IClassifier classifier)
 	{
 		try
@@ -146,14 +157,24 @@ class ClassifierController
 
 
 	/**
-	 * @param instance
+	 * Runs the classifier, training it, testing it, then evaluating it
+	 *
+	 * @param instance The current classifier instance
 	 * @throws ClassifierException
 	 */
 	private void runClassifier(IClassifier instance) throws ClassifierException
 	{
 
 		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData(instance);
-		final VFSListDataset<FImage> testData = createTestDataset(instance);
+
+		// Loading test dataset
+		if (testDataset == null)
+		{
+			throw new ClassifierException("Error loading test dataset");
+		}
+
+		parallelAwarePrintln(instance, "Test set size = " + testDataset.size());
+		final VFSListDataset<FImage> testData = testDataset;
 
 		parallelAwarePrintln(instance, "Training dataset loaded. Staring training...");
 
@@ -162,13 +183,16 @@ class ClassifierController
 		parallelAwarePrintln(instance, "Training complete. Now predicting... (progress on stderr, output on stout)");
 
 		testClassifier(instance, testData);
+
 		evaluateClassifier(instance, trainingData);
 
 	}
 
 
 	/**
-	 * @param instance
+	 * Does some reorganising of the training dataset, and extracts a subset training data and validation data from it
+	 *
+	 * @param instance The current classifier instance
 	 * @return
 	 * @throws Exception
 	 */
@@ -176,7 +200,7 @@ class ClassifierController
 	{
 		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
-		// Sample all data so we have a GroupedDataset<String, ListDataset<FImage>, FImage>, and not a group with a VFSListDataset.
+		//Converts the inner image list from the VFS version to the genric version
 		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
 
 		final int trainingDataSize = trainingData.size();
@@ -186,37 +210,14 @@ class ClassifierController
 		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
 
 		parallelAwarePrintln(instance, "Training set size = " + trainingDataSize);
-		//			ClassifierUtils.parallelAwarePrintln("Control set size = " + controlData.size());
 		return newTrainingDataset;
 	}
 
 
 	/**
-	 * @param instance
-	 * @return
-	 * @throws Exception
-	 */
-	private VFSListDataset<FImage> createTestDataset(final IClassifier instance) throws ClassifierException
-	{
-		//		UniformRandomisedSampler<FImage> listSampler = new UniformRandomisedSampler<FImage>(0.8d);
-		//
-		//		final ListDataset<FImage> testData = listSampler.sample(testDataset);
-
-		final VFSListDataset<FImage> testData = testDataset;
-
-		// Loading test dataset
-		if (testDataset == null)
-		{
-			throw new ClassifierException("Error loading test dataset");
-		}
-
-		parallelAwarePrintln(instance, "Test set size = " + testData.size());
-		return testData;
-	}
-
-
-	/**
-	 * @param instance
+	 * Calls the train method of the classifier to train it using the training data
+	 *
+	 * @param instance     The current classifier instance
 	 * @param trainingData
 	 */
 	private static void trainClassifer(final IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
@@ -226,21 +227,24 @@ class ClassifierController
 
 
 	/**
-	 * @param instance
+	 * Applies the trained classifier to a set of testing images, attempts to predict their image classes
+	 *
+	 * @param instance The current classifier instance
 	 * @param testData
 	 */
 	private void testClassifier(final IClassifier instance, final VFSListDataset<FImage> testData)
 	{
 		try
 		{
+			//Creates a fresh submission file for classifier output
 			File submissionFile = new File(System.getProperty("user.dir") + "default.txt");
 			submissionFile = setSubmissionFileLocation(instance, submissionFile);
 			Files.deleteIfExists(submissionFile.toPath());
 			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.CREATE);
-			//			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.WRITE);
 
 			ExecutorService classifyExecutor = Executors.newCachedThreadPool();
 
+			//Iterates through each test image, runs the classifier on the image
 			for (int j = 0; j < testData.size(); j++)
 			{
 				final File finalSubmissionFile = submissionFile;
@@ -248,8 +252,10 @@ class ClassifierController
 				//				ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Classifying Image {0}", j));
 				classifyExecutor.execute(() -> classifyImage(instance, testData, finalSubmissionFile, finalJ));
 			}
+
+			//Awaits on classificaiton of all images in the testing set (timeout 20 minutes)
 			classifyExecutor.shutdown();
-			classifyExecutor.awaitTermination(5, TimeUnit.MINUTES);
+			
 			parallelAwarePrintln(instance, "\n Done.");
 		}
 		catch (ClassifierException | IOException | InterruptedException e)
