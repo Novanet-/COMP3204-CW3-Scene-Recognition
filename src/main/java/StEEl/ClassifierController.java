@@ -4,6 +4,7 @@ import StEEl.run1.TinyImageClassifier;
 import StEEl.run2.LinearClassifier;
 import StEEl.run3.ComplexClassifier;
 import org.apache.commons.vfs2.FileSystemException;
+import org.jetbrains.annotations.NotNull;
 import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.ListDataset;
 import org.openimaj.data.dataset.VFSGroupDataset;
@@ -384,12 +385,19 @@ class ClassifierController
 	{
 		if (predicted != null)
 		{
-			final Set<String> predictedClasses = predicted.getPredictedClasses();
-			final String[] classes = predictedClasses.toArray(new String[predictedClasses.size()]);
+			final String[] classes = getPredictedClassesArray(predicted);
 
 			buildAndPrintProgressString(instance, classifiedTestDataset, j, file, classes);
 
 		}
+	}
+
+
+	@NotNull
+	private static String[] getPredictedClassesArray(final ClassificationResult<String> predicted)
+	{
+		final Set<String> predictedClasses = predicted.getPredictedClasses();
+		return predictedClasses.toArray(new String[predictedClasses.size()]);
 	}
 
 
@@ -404,8 +412,7 @@ class ClassifierController
 	{
 		if (predictedImageClasses != null)
 		{
-			final Set<String> predictedClasses = predictedImageClasses.getPredictedClasses();
-			final String[] classes = predictedClasses.toArray(new String[predictedClasses.size()]);
+			final String[] classes = getPredictedClassesArray(predictedImageClasses);
 
 			try
 			{

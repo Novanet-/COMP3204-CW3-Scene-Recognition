@@ -62,10 +62,7 @@ public class TinyImageClassifier extends AbstractClassifier
 				// Extract feature vector
 				ClassifierUtils.parallelAwarePrintln(this, MessageFormat.format("Extracting Feature Image {0}", count));
 
-				final DoubleFV featureVector = ve.extractFeature(image);
-
-				featureVector.normaliseFV();
-				final double[] fv = featureVector.values;
+				final double[] fv = extractNormalisedFeature(ve, image);
 
 				featureVectors.add(fv);
 				classes.add(group);
@@ -78,6 +75,15 @@ public class TinyImageClassifier extends AbstractClassifier
 
 		//New knn with training feature vectors
 		knn = new DoubleNearestNeighboursExact(featureVectorArray);
+	}
+
+
+	private double[] extractNormalisedFeature(final FeatureExtractor<DoubleFV, FImage> ve, final FImage image)
+	{
+		final DoubleFV featureVector = ve.extractFeature(image);
+
+		featureVector.normaliseFV();
+		return featureVector.values;
 	}
 
 
@@ -95,10 +101,7 @@ public class TinyImageClassifier extends AbstractClassifier
 		//Create a tiny image feature extractor
 		final FeatureExtractor<DoubleFV, FImage> vectorExtractor = new TinyImageFeatureExtractor(SQUARE_SIZE);
 
-		//Extract the "tiny image" of the image as a 1D feature vector
-		final DoubleFV featureVector = vectorExtractor.extractFeature(image);
-		featureVector.normaliseFV();
-		final double[] featureVectorArray = featureVector.values;
+		final double[] featureVectorArray = extractNormalisedFeature(vectorExtractor, image);
 
 		//Find k nearest neighbours (match the images "tiny image" with all the "tiny images" in the training set
 		final List<IntDoublePair> neighbours = knn.searchKNN(featureVectorArray, K_VALUE);

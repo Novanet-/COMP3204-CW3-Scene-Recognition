@@ -129,7 +129,7 @@ public class LinearClassifier extends AbstractClassifier
 	 * @param step       The step size.
 	 * @param patch_size The size of the patches.
 	 */
-	private static List<LocalFeature<SpatialLocation, FloatFV>> extract(FImage image, float step, float patch_size)
+	protected static List<LocalFeature<SpatialLocation, FloatFV>> extract(FImage image, float step, float patch_size)
 	{
 		final List<LocalFeature<SpatialLocation, FloatFV>> areaList = new ArrayList<LocalFeature<SpatialLocation, FloatFV>>();
 
