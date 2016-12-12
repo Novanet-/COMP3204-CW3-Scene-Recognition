@@ -5,23 +5,24 @@ import StEEl.run2.LinearClassifier;
 import StEEl.run3.ComplexClassifier;
 import org.apache.commons.vfs2.FileSystemException;
 import org.jetbrains.annotations.NotNull;
-import org.openimaj.data.dataset.GroupedDataset;
-import org.openimaj.data.dataset.ListDataset;
-import org.openimaj.data.dataset.VFSGroupDataset;
-import org.openimaj.data.dataset.VFSListDataset;
+import org.openimaj.data.dataset.*;
 import org.openimaj.experiment.dataset.sampling.GroupSampler;
 import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.evaluation.classification.ClassificationEvaluator;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
 import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMAnalyser;
 import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMResult;
+import org.openimaj.image.DisplayUtilities;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
+import org.openimaj.image.processing.transform.AffineSimulation;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -45,7 +46,7 @@ class ClassifierController
 	private static final int                                                    LINEAR_ID           = 2;
 	private static final int                                                    COMPLEX_ID          = 3;
 	//	private static final File   TESTING_DATA_DIRECTORY    = new File("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\testing.zip");
-	private              GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingDataset     = null;
+	private              GroupedDataset<String, ListDataset<FImage>, FImage>    trainingDataset     = null;
 	private              VFSListDataset<FImage>                                 testDataset         = null;
 	private              boolean                                                consoleOutput       = false;
 	private              boolean                                                writeSubmissionFile = false;
@@ -81,16 +82,16 @@ class ClassifierController
 			final Runnable c3task = () -> runClassifierTask(run3ComplexClassifier);
 
 			//Asynchronous execution
-
-/*			//Use the executor to invoke each classifier task, these are executed in parallel to each other
+/*
+			//Use the executor to invoke each classifier task, these are executed in parallel to each other
 			topExecutor.execute(c1task);
 			topExecutor.execute(c2task);
 			topExecutor.execute(c3task);
 			//
 			//Orders the executor to finish all tasks, will give it 20 minutes to complete execution, at which point is will force shutdown their threads
 			topExecutor.shutdown();
-			topExecutor.awaitTermination(20, TimeUnit.MINUTES);*/
-
+			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+*/
 			//Synchronous execution
 			//Execute each tasks one at a time, waiting for each one to finish before invoking the next
 			topExecutor.execute(c1task);
@@ -133,7 +134,8 @@ class ClassifierController
 			throw new IOException("Testing data missing");
 		}
 
-		trainingDataset = new VFSGroupDataset<FImage>(TRAINING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
+		GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingData = new VFSGroupDataset<FImage>(TRAINING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
+		trainingDataset = createTrainingAndValidationData(trainingData);
 		testDataset = new VFSListDataset<FImage>(TESTING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
 	}
 
@@ -164,9 +166,6 @@ class ClassifierController
 	 */
 	private void runClassifier(IClassifier instance) throws ClassifierException
 	{
-
-		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData(instance);
-
 		// Loading test dataset
 		if (testDataset == null)
 		{
@@ -178,13 +177,13 @@ class ClassifierController
 
 		parallelAwarePrintln(instance, "Training dataset loaded. Staring training...");
 
-		trainClassifer(instance, trainingData);
+		trainClassifer(instance, trainingDataset);
 
 		parallelAwarePrintln(instance, "Training complete. Now predicting... (progress on stderr, output on stout)");
 
 		testClassifier(instance, testData);
 
-		evaluateClassifier(instance, trainingData);
+		evaluateClassifier(instance, trainingDataset);
 
 	}
 
@@ -192,7 +191,7 @@ class ClassifierController
 	/**
 	 * Does some reorganising of the training dataset, and extracts a subset training data and validation data from it
 	 *
-	 * @param instance The current classifier instance
+	 * @param trainingDataset Dataset to reorganise
 	 * @return
 	 * @throws Exception
 	 */
@@ -200,7 +199,7 @@ class ClassifierController
 	{
 //		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
-		//Converts the inner image list from the VFS version to the genric version
+		//Converts the inner image list from the VFS version to the generic version
 		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
 
 		final int trainingDataSize = trainingData.size();
@@ -209,8 +208,29 @@ class ClassifierController
 		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
 		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
 
-		parallelAwarePrintln(instance, "Training set size = " + trainingDataSize);
+		newTrainingDataset = addRotationImages(newTrainingDataset);
+
 		return newTrainingDataset;
+	}
+
+	private GroupedDataset<String, ListDataset<FImage>, FImage> addRotationImages(GroupedDataset<String, ListDataset<FImage>, FImage> dataset) {
+		GroupedDataset<String, ListDataset<FImage>, FImage> tmp = dataset;
+
+		for (String key : dataset.keySet()) {
+			ListDataset<FImage> newImages = new ListBackedDataset<>();
+
+			for (FImage image : dataset.getInstances(key)) {
+				newImages.add(image);
+				newImages.add(AffineSimulation.transformImage(image, 0.01f, 1));
+				newImages.add(AffineSimulation.transformImage(image, -0.01f, 1));
+				newImages.add(AffineSimulation.transformImage(image, 0.02f, 1));
+				newImages.add(AffineSimulation.transformImage(image, -0.02f, 1));
+			}
+
+			tmp.put(key, newImages);
+		}
+
+		return tmp;
 	}
 
 
