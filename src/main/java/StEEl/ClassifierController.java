@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -48,7 +47,6 @@ class ClassifierController
 	private @Nullable    VFSListDataset<FImage>                              testDataset         = null;
 	private              boolean                                             consoleOutput       = false;
 	private              boolean                                             writeSubmissionFile = false;
-	private ExecutorService topExecutor;
 
 
 	/**
@@ -64,7 +62,7 @@ class ClassifierController
 			this.writeSubmissionFile = writeSubmissionFileArg;
 
 			//Create an executor service for running the 3 classifiers in parallel
-			topExecutor = Executors.newCachedThreadPool();
+			ExecutorService topExecutor = Executors.newCachedThreadPool();
 
 			//Create training/testing datasets
 			initialiseData();
@@ -96,17 +94,17 @@ class ClassifierController
 			//			topExecutor.shutdown();
 			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 			//
-			topExecutor = Executors.newCachedThreadPool();
+//			topExecutor = Executors.newCachedThreadPool();
+//
+//			topExecutor.execute(c2task);
+//			topExecutor.shutdown();
+//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 
-			topExecutor.execute(c2task);
-			topExecutor.shutdown();
-			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+						topExecutor = Executors.newCachedThreadPool();
 
-			//			topExecutor = Executors.newCachedThreadPool();
-			//
-			//			topExecutor.execute(c3task);
-			//			topExecutor.shutdown();
-			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+						topExecutor.execute(c3task);
+						topExecutor.shutdown();
+						topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 		}
 		catch (final @NotNull IOException | InterruptedException e)
 		{
@@ -226,7 +224,8 @@ class ClassifierController
 	 * @param trainingDataSize
 	 * @return
 	 */
-	private static @NotNull GroupedRandomSplitter<String, FImage> splitTrainingData(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData, final double trainingDataSize)
+	private static @NotNull GroupedRandomSplitter<String, FImage> splitTrainingData(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData,
+			final double trainingDataSize)
 	{
 		final int percent80 = (int) Math.round(trainingDataSize * 0.8);
 		final int percent20 = (int) Math.round(trainingDataSize * 0.2);
@@ -236,10 +235,11 @@ class ClassifierController
 
 	private static @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> addRotationImages(@NotNull GroupedDataset<String, ListDataset<FImage>, FImage> dataset)
 	{
+		final ListDataset<FImage> newImages = new ListBackedDataset<>();
+
 		for (final String key : dataset.keySet())
 		{
-			final ListDataset<FImage> newImages = new ListBackedDataset<>();
-
+			newImages.clear();
 			for (final FImage image : dataset.getInstances(key))
 			{
 				newImages.add(image);
@@ -291,7 +291,6 @@ class ClassifierController
 			{
 				final File finalSubmissionFile = submissionFile;
 				final int finalJ = j;
-				//				ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Classifying Image {0}", j));
 				classifyExecutor.execute(() -> classifyImage(instance, testData, finalSubmissionFile, finalJ));
 			}
 
@@ -382,115 +381,20 @@ class ClassifierController
 			{
 				if (consoleOutput)
 				{
-					printExecutor.execute(() -> printTestProgress(instance, j, filename, predicted));
+					printExecutor.execute(() -> ClassifierUtils.printTestProgress(instance, j, filename, predicted));
 				}
 				if (writeSubmissionFile)
 				{
-					printExecutor.execute(() -> writeResult(submissionFile, filename, predicted));
+					printExecutor.execute(() -> ClassifierUtils.writeResult(submissionFile, filename, predicted));
 				}
 			}
 			printExecutor.shutdown();
 			printExecutor.awaitTermination(10, TimeUnit.SECONDS);
 		}
-		catch (InterruptedException e)
+		catch (final InterruptedException e)
 		{
 			e.printStackTrace();
 		}
-	}
-
-
-	/**
-	 * Output assembler for console output
-	 *
-	 * @param instance              The current classifier instance
-	 * @param j
-	 * @param file
-	 * @param predicted
-	 */
-	private static void printTestProgress(final @NotNull IClassifier instance, final int j, final String file, final @Nullable ClassificationResult<String> predicted)
-	{
-		if (predicted != null)
-		{
-			final String[] classes = getPredictedClassesArray(predicted);
-
-			buildAndPrintProgressString(instance, j, file, classes);
-
-		}
-	}
-
-
-	/**
-	 * Writes a line of the submission file, using the name of the image, and its predicted class
-	 *
-	 * @param file
-	 * @param imageName
-	 * @param predictedImageClasses
-	 */
-	private static void writeResult(@NotNull File file, String imageName, @Nullable ClassificationResult<String> predictedImageClasses)
-	{
-		if (predictedImageClasses != null)
-		{
-			final String[] classes = getPredictedClassesArray(predictedImageClasses);
-
-			try
-			{
-				final StringBuilder sb = new StringBuilder();
-				sb.append(imageName).append(' ');
-				for (final String cls : classes)
-				{
-					sb.append(cls);
-					sb.append(' ');
-				}
-				sb.append(System.lineSeparator());
-				Files.write(file.toPath(), sb.toString().getBytes(), StandardOpenOption.APPEND);
-			}
-			catch (final @NotNull IOException e)
-			{
-				e.printStackTrace();
-			}
-		}
-		else
-		{
-		}
-	}
-
-
-	private static @NotNull String[] getPredictedClassesArray(final @NotNull ClassificationResult<String> predicted)
-	{
-		final Set<String> predictedClasses = predicted.getPredictedClasses();
-		return predictedClasses.toArray(new String[predictedClasses.size()]);
-	}
-
-
-	/**
-	 * String builder for console output, using image name and predicted class
-	 *
-	 * @param instance              The current classifier instance
-	 * @param j
-	 * @param file
-	 * @param classes
-	 */
-	private static void buildAndPrintProgressString(final @NotNull IClassifier instance, final int j, final String file, final @NotNull String[] classes)
-	{
-		final StringBuilder sb = new StringBuilder();
-		sb.append(file).append(' ');
-
-		for (final String cls : classes)
-		{
-			sb.append(cls);
-			sb.append(' ');
-		}
-		sb.append(System.lineSeparator());
-		try
-		{
-			sb.append('\r').append('[').append(instance.getClassifierID()).append("] -- ");
-		}
-		catch (ClassifierException e)
-		{
-			e.printStackTrace();
-		}
-
-		System.out.print(sb);
 	}
 
 }

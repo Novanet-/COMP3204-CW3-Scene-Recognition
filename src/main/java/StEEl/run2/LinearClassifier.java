@@ -74,7 +74,7 @@ public class LinearClassifier extends AbstractClassifier
 	 * @param instance
 	 * @param sample   The dataset to use for creating the HardAssigner.
 	 */
-	private static @NotNull HardAssigner<float[], float[], IntFloatPair> trainQuantiser(final LinearClassifier instance, @NotNull Iterable<FImage> sample)
+	private static @NotNull HardAssigner<float[], float[], IntFloatPair> trainQuantiser(final @NotNull LinearClassifier instance, @NotNull Iterable<FImage> sample)
 	{
 		final List<float[]> allkeys = new ArrayList<float[]>();
 		int count = 0;
