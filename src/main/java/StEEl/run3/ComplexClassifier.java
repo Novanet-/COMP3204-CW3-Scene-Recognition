@@ -2,6 +2,8 @@ package StEEl.run3;
 
 import StEEl.AbstractClassifier;
 import StEEl.ClassifierUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.openimaj.data.DataSource;
 import org.openimaj.data.dataset.Dataset;
 import org.openimaj.data.dataset.GroupedDataset;
@@ -30,40 +32,17 @@ import org.openimaj.util.pair.IntFloatPair;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ComplexClassifier extends AbstractClassifier {
-	private NaiveBayesAnnotator<FImage, String> annotator = null;
-	private static final int CLUSTERS = 25;
-    private static final int STEP = 4;
-    private static final int BINSIZE = 8;
-    private static final int DEFAULT_SIFT_LIMIT = 10000;
+	protected static final int                                 STEP               = 4;
+	protected static final int                                 BINSIZE            = 8;
+	protected static final float                               E_THRESHOLD        = 0.015f;
+	private static final   int                                 CLUSTERS           = 25;
+	private @Nullable NaiveBayesAnnotator<FImage, String> annotator          = null;
 
-    private static final float E_THRESHOLD = 0.015f;
-
-	public ComplexClassifier(final int classifierID)
-	{
+	public ComplexClassifier(final int classifierID) {
 		super(classifierID);
-	}
-
-	//Temporary function to run classifier without use of lambdas or threads to get around Exceptions being thrown
-	public void NonThreadedRun(GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingDataset, VFSListDataset<FImage> testDataset ) {
-		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
-
-		//Converts the inner image list from the VFS version to the genric version
-		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
-
-		final int trainingDataSize = trainingData.size();
-
-		final int PERCENT80 = (int) Math.round(trainingDataSize * 0.08);
-		final int PERCENT20 = (int) Math.round(trainingDataSize * 0.08);
-		final GroupedRandomSplitter<String, FImage> trainingSplitter = new GroupedRandomSplitter<String, FImage>(trainingData, PERCENT80, PERCENT20, 0);
-
-		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
-
-		train(newTrainingDataset);
-		for (FImage image : testDataset) {
-			System.out.println(classify(image).getPredictedClasses());
-		}
 	}
 
 	/**
@@ -72,8 +51,7 @@ public class ComplexClassifier extends AbstractClassifier {
 	 * @param trainingSet
 	 */
 	@Override
-	public final void train(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
-	{
+	public final void train(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet) {
 		//Dense sift pyramid
 		final DenseSIFT denseSIFT = new DenseSIFT(STEP, BINSIZE);
 
@@ -104,21 +82,28 @@ public class ComplexClassifier extends AbstractClassifier {
 		return annotator.classify(image);
 	}
 
-	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final ComplexClassifier instance, Dataset<FImage> dataset, final DenseSIFT pdsift, final int siftLimit) {
+	/**
+	 * Build a HardAssigner based on k-means ran on features extracted with dense SIFT
+	 *
+	 * @param instance
+	 * @param dataset   The dataset to use for creating the HardAssigner.
+	 * @param dsift The instance of dense SIFT to use for extracting features
+	 */
+	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final @NotNull ComplexClassifier instance, @NotNull Dataset<FImage> dataset, final @NotNull DenseSIFT dsift) {
 
 		//List of sift features from training set
-		final List<LocalFeatureList<ByteDSIFTKeypoint>> allKeys = new ArrayList();
+		final AtomicReference<List<LocalFeatureList<ByteDSIFTKeypoint>>> allKeys = new AtomicReference<>(new ArrayList());
 
 		//For each image
 		for (FImage image : dataset) {
 			//Get sift features
-			pdsift.analyseImage(image);
-			allKeys.add(pdsift.getByteKeypoints());
+			dsift.analyseImage(image);
+			allKeys.get().add(dsift.getByteKeypoints());
 		}
 
 		//Create a kmeans classifier with 600 categories (600 visual words)
 		final ByteKMeans kMeans = ByteKMeans.createKDTreeEnsemble(CLUSTERS);
-		final DataSource<byte[]> dataSource = new LocalFeatureListDataSource<>(allKeys);
+		final DataSource<byte[]> dataSource = new LocalFeatureListDataSource<>(allKeys.get());
 
 		//Generate clusters (Visual words) from sift features.
 		ClassifierUtils.parallelAwarePrintln(instance, "Start clustering.");
@@ -126,37 +111,5 @@ public class ComplexClassifier extends AbstractClassifier {
 		ClassifierUtils.parallelAwarePrintln(instance, "Clustering finished.");
 
 		return result.defaultHardAssigner();
-	}
-
-	//Generate visual words
-	static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final ComplexClassifier instance, Dataset<FImage> dataset, final DenseSIFT pdsift) {
-		return trainQuantiser(instance, dataset, pdsift, DEFAULT_SIFT_LIMIT);
-	}
-
-
-	//Extract bag of visual words feature vector
-	class PHOWExtractor implements FeatureExtractor<DoubleFV, FImage>
-	{
-		final HardAssigner<byte[], float[], IntFloatPair> assigner;
-
-		public PHOWExtractor(HardAssigner<byte[], float[], IntFloatPair> assigner) {
-			this.assigner = assigner;
-		}
-
-		final public DoubleFV extractFeature(FImage image) {
-            final DenseSIFT denseSIFT = new DenseSIFT(STEP, BINSIZE);
-
-			//Get sift features of input image
-            denseSIFT.analyseImage(image);
-
-			//Bag of visual words histogram representation
-			final BagOfVisualWords<byte[]> bovw = new BagOfVisualWords<>(assigner);
-
-			//Bag of visual words for blocks and combine
-			final BlockSpatialAggregator<byte[], SparseIntFV> spatialAggregator = new BlockSpatialAggregator<>(bovw, 2, 2);
-
-			//Return normalised feature vector
-			return spatialAggregator.aggregate(denseSIFT.getByteKeypoints(E_THRESHOLD), image.getBounds()).normaliseFV();
-		}
 	}
 }
