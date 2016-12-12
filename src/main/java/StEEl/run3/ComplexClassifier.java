@@ -32,9 +32,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ComplexClassifier extends AbstractClassifier {
-	NaiveBayesAnnotator<FImage, String> annotator;
+	private NaiveBayesAnnotator<FImage, String> annotator = null;
 	private static final int CLUSTERS = 25;
+    private static final int STEP = 4;
+    private static final int BINSIZE = 8;
+    private static final int DEFAULT_SIFT_LIMIT = 10000;
 
+    private static final float E_THRESHOLD = 0.015f;
 
 	public ComplexClassifier(final int classifierID)
 	{
@@ -71,14 +75,13 @@ public class ComplexClassifier extends AbstractClassifier {
 	public final void train(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
 	{
 		//Dense sift pyramid
-		final DenseSIFT denseSIFT = new DenseSIFT(4, 8);
-		final PyramidDenseSIFT<FImage> pdSIFT = new PyramidDenseSIFT<FImage>(denseSIFT, 6f, 7);
+		final DenseSIFT denseSIFT = new DenseSIFT(STEP, BINSIZE);
 
 		//Assigner assigning sift features to visual word, trainQuantiser
-		final HardAssigner<byte[], float[], IntFloatPair> assigner = trainQuantiser(this, trainingSet, pdSIFT);
+		final HardAssigner<byte[], float[], IntFloatPair> assigner = trainQuantiser(this, trainingSet, denseSIFT);
 
 		//Feature extractor based on bag of visual words
-		final FeatureExtractor<DoubleFV, FImage> extractor = new PHOWExtractor(pdSIFT, assigner);
+		final FeatureExtractor<DoubleFV, FImage> extractor = new PHOWExtractor(assigner);
 
 		//Create Bayesian annotator
 		annotator = new NaiveBayesAnnotator<>(extractor, NaiveBayesAnnotator.Mode.MAXIMUM_LIKELIHOOD);
@@ -93,15 +96,15 @@ public class ComplexClassifier extends AbstractClassifier {
 	/**
 	 * Classify an object.
 	 *
-	 * @param object the object to classify.
+	 * @param image the object to classify.
 	 * @return classes and scores for the object.
 	 */
 	@Override
-	public final ClassificationResult<String> classify(final FImage object) {
-		return annotator.classify(object);
+	public final ClassificationResult<String> classify(final FImage image) {
+		return annotator.classify(image);
 	}
 
-	static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(ComplexClassifier instance, Dataset<FImage> dataset, PyramidDenseSIFT<FImage> pdsift, int siftLimit) {
+	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final ComplexClassifier instance, Dataset<FImage> dataset, final DenseSIFT pdsift, final int siftLimit) {
 
 		//List of sift features from training set
 		final List<LocalFeatureList<ByteDSIFTKeypoint>> allKeys = new ArrayList();
@@ -126,25 +129,25 @@ public class ComplexClassifier extends AbstractClassifier {
 	}
 
 	//Generate visual words
-	static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(ComplexClassifier instance, Dataset<FImage> dataset, PyramidDenseSIFT<FImage> pdsift) {
-		return trainQuantiser(instance, dataset, pdsift, 10000);
+	static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final ComplexClassifier instance, Dataset<FImage> dataset, final DenseSIFT pdsift) {
+		return trainQuantiser(instance, dataset, pdsift, DEFAULT_SIFT_LIMIT);
 	}
 
 
 	//Extract bag of visual words feature vector
 	class PHOWExtractor implements FeatureExtractor<DoubleFV, FImage>
 	{
-		final PyramidDenseSIFT<FImage> pdsift;
 		final HardAssigner<byte[], float[], IntFloatPair> assigner;
 
-		public PHOWExtractor(PyramidDenseSIFT<FImage> pdsift, HardAssigner<byte[], float[], IntFloatPair> assigner) {
-			this.pdsift = pdsift;
+		public PHOWExtractor(HardAssigner<byte[], float[], IntFloatPair> assigner) {
 			this.assigner = assigner;
 		}
 
 		final public DoubleFV extractFeature(FImage image) {
+            final DenseSIFT denseSIFT = new DenseSIFT(STEP, BINSIZE);
+
 			//Get sift features of input image
-			pdsift.analyseImage(image);
+            denseSIFT.analyseImage(image);
 
 			//Bag of visual words histogram representation
 			final BagOfVisualWords<byte[]> bovw = new BagOfVisualWords<>(assigner);
@@ -153,7 +156,7 @@ public class ComplexClassifier extends AbstractClassifier {
 			final BlockSpatialAggregator<byte[], SparseIntFV> spatialAggregator = new BlockSpatialAggregator<>(bovw, 2, 2);
 
 			//Return normalised feature vector
-			return spatialAggregator.aggregate(pdsift.getByteKeypoints(0.015f), image.getBounds()).normaliseFV();
+			return spatialAggregator.aggregate(denseSIFT.getByteKeypoints(E_THRESHOLD), image.getBounds()).normaliseFV();
 		}
 	}
 }
