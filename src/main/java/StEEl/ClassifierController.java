@@ -5,6 +5,7 @@ import StEEl.run2.LinearClassifier;
 import StEEl.run3.ComplexClassifier;
 import org.apache.commons.vfs2.FileSystemException;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.openimaj.data.dataset.*;
 import org.openimaj.experiment.dataset.sampling.GroupSampler;
 import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
@@ -39,14 +40,14 @@ class ClassifierController
 	//	private static final File   TRAINING_DATA_DIRECTORY   = new File("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\training.zip");
 	private static final File   TESTING_DATA_DIRECTORY    = new File(CURRENT_WORKING_DIRECTORY + "/testing/");
 
-	private static final int                                                    TINYIMAGE_ID        = 1;
-	private static final int                                                    LINEAR_ID           = 2;
-	private static final int                                                    COMPLEX_ID          = 3;
+	private static final int                                                 TINYIMAGE_ID        = 1;
+	private static final int                                                 LINEAR_ID           = 2;
+	private static final int                                                 COMPLEX_ID          = 3;
 	//	private static final File   TESTING_DATA_DIRECTORY    = new File("zip:D:\\Documents\\MEGA\\Uni\\COMP3204 Computer Vision\\CW3 Scene Recognition\\testing.zip");
-	private              GroupedDataset<String, ListDataset<FImage>, FImage>    trainingDataset     = null;
-	private              VFSListDataset<FImage>                                 testDataset         = null;
-	private              boolean                                                consoleOutput       = false;
-	private              boolean                                                writeSubmissionFile = false;
+	private @Nullable    GroupedDataset<String, ListDataset<FImage>, FImage> trainingDataset     = null;
+	private @Nullable    VFSListDataset<FImage>                              testDataset         = null;
+	private              boolean                                             consoleOutput       = false;
+	private              boolean                                             writeSubmissionFile = false;
 	private ExecutorService topExecutor;
 
 
@@ -91,23 +92,23 @@ class ClassifierController
 */
 			//Synchronous execution
 			//Execute each tasks one at a time, waiting for each one to finish before invoking the next
-//			topExecutor.execute(c1task);
-//			topExecutor.shutdown();
-//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
-//
+			//			topExecutor.execute(c1task);
+			//			topExecutor.shutdown();
+			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+			//
 			topExecutor = Executors.newCachedThreadPool();
 
 			topExecutor.execute(c2task);
 			topExecutor.shutdown();
 			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 
-//			topExecutor = Executors.newCachedThreadPool();
-//
-//			topExecutor.execute(c3task);
-//			topExecutor.shutdown();
-//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+			//			topExecutor = Executors.newCachedThreadPool();
+			//
+			//			topExecutor.execute(c3task);
+			//			topExecutor.shutdown();
+			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 		}
-		catch (final IOException | InterruptedException e)
+		catch (final @NotNull IOException | InterruptedException e)
 		{
 			e.printStackTrace();
 		}
@@ -131,8 +132,8 @@ class ClassifierController
 			throw new IOException("Testing data missing");
 		}
 
-		GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingData = new VFSGroupDataset<FImage>(TRAINING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
-		trainingDataset = createTrainingAndValidationData(trainingData);
+		final GroupedDataset<String, VFSListDataset<FImage>, FImage> vfsTrainingData = new VFSGroupDataset<FImage>(TRAINING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
+		trainingDataset = createTrainingAndValidationData(vfsTrainingData);
 		testDataset = new VFSListDataset<FImage>(TESTING_DATA_DIRECTORY.getPath(), ImageUtilities.FIMAGE_READER);
 	}
 
@@ -142,7 +143,7 @@ class ClassifierController
 	 *
 	 * @param classifier
 	 */
-	private void runClassifierTask(final IClassifier classifier)
+	private void runClassifierTask(final @NotNull IClassifier classifier)
 	{
 		try
 		{
@@ -156,12 +157,38 @@ class ClassifierController
 
 
 	/**
+	 * Does some reorganising of the training dataset, and extracts a subset training data and validation data from it
+	 *
+	 * @param vfsTrainingData
+	 * @return
+	 */
+	private static GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData(
+			final @NotNull GroupedDataset<String, VFSListDataset<FImage>, FImage> vfsTrainingData)
+	{
+		//		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
+
+		//Converts the inner image list from the VFS version to the generic version
+		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(vfsTrainingData, vfsTrainingData.size(), false);
+
+		final int trainingDataSize = trainingData.size();
+		final GroupedRandomSplitter<String, FImage> trainingSplitter = splitTrainingData(trainingData, (double) trainingDataSize);
+
+		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
+		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
+
+		newTrainingDataset = addRotationImages(newTrainingDataset);
+
+		return newTrainingDataset;
+	}
+
+
+	/**
 	 * Runs the classifier, training it, testing it, then evaluating it
 	 *
 	 * @param instance The current classifier instance
 	 * @throws ClassifierException
 	 */
-	private void runClassifier(IClassifier instance) throws ClassifierException
+	private void runClassifier(@NotNull IClassifier instance) throws ClassifierException
 	{
 		// Loading test dataset
 		if (testDataset == null)
@@ -180,43 +207,41 @@ class ClassifierController
 
 		testClassifier(instance, testData);
 
-		evaluateClassifier(instance, trainingDataset);
+		if (trainingDataset != null)
+		{
+			evaluateClassifier(instance, trainingDataset);
+		}
+		else
+		{
+			throw new ClassifierException("Training dataset is null when attempting to evaluate");
+		}
 
 	}
 
 
 	/**
-	 * Does some reorganising of the training dataset, and extracts a subset training data and validation data from it
+	 * 80% of the training dataset is randomly selected as the trianing data, the other 20% is selected as validation data for use in the evaluator
 	 *
-	 * @param trainingDataset Dataset to reorganise
+	 * @param trainingData
+	 * @param trainingDataSize
 	 * @return
-	 * @throws Exception
 	 */
-	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData(final IClassifier instance)
+	private static @NotNull GroupedRandomSplitter<String, FImage> splitTrainingData(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData, final double trainingDataSize)
 	{
-//		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
-
-		//Converts the inner image list from the VFS version to the generic version
-		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
-
-		final int trainingDataSize = trainingData.size();
-		final GroupedRandomSplitter<String, FImage> trainingSplitter = splitTrainingData(trainingData, (double) trainingDataSize);
-
-		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
-		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
-
-		newTrainingDataset = addRotationImages(newTrainingDataset);
-
-		return newTrainingDataset;
+		final int percent80 = (int) Math.round(trainingDataSize * 0.8);
+		final int percent20 = (int) Math.round(trainingDataSize * 0.2);
+		return new GroupedRandomSplitter<String, FImage>(trainingData, percent80, percent20, 0);
 	}
 
-	private GroupedDataset<String, ListDataset<FImage>, FImage> addRotationImages(GroupedDataset<String, ListDataset<FImage>, FImage> dataset) {
-		GroupedDataset<String, ListDataset<FImage>, FImage> tmp = dataset;
 
-		for (String key : dataset.keySet()) {
-			ListDataset<FImage> newImages = new ListBackedDataset<>();
+	private static @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> addRotationImages(@NotNull GroupedDataset<String, ListDataset<FImage>, FImage> dataset)
+	{
+		for (final String key : dataset.keySet())
+		{
+			final ListDataset<FImage> newImages = new ListBackedDataset<>();
 
-			for (FImage image : dataset.getInstances(key)) {
+			for (final FImage image : dataset.getInstances(key))
+			{
 				newImages.add(image);
 				newImages.add(AffineSimulation.transformImage(image, 0.01f, 1));
 				newImages.add(AffineSimulation.transformImage(image, -0.01f, 1));
@@ -224,10 +249,10 @@ class ClassifierController
 				newImages.add(AffineSimulation.transformImage(image, -0.02f, 1));
 			}
 
-			tmp.put(key, newImages);
+			dataset.put(key, newImages);
 		}
 
-		return tmp;
+		return dataset;
 	}
 
 
@@ -237,7 +262,7 @@ class ClassifierController
 	 * @param instance     The current classifier instance
 	 * @param trainingData
 	 */
-	private static void trainClassifer(final IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
+	private static void trainClassifer(final @NotNull IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
 	{
 		instance.train(trainingData);
 	}
@@ -249,7 +274,7 @@ class ClassifierController
 	 * @param instance The current classifier instance
 	 * @param testData
 	 */
-	private void testClassifier(final IClassifier instance, final VFSListDataset<FImage> testData)
+	private void testClassifier(final @NotNull IClassifier instance, final @NotNull VFSListDataset<FImage> testData)
 	{
 		try
 		{
@@ -259,7 +284,7 @@ class ClassifierController
 			Files.deleteIfExists(submissionFile.toPath());
 			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.CREATE);
 
-			ExecutorService classifyExecutor = Executors.newCachedThreadPool();
+			final ExecutorService classifyExecutor = Executors.newCachedThreadPool();
 
 			//Iterates through each test image, runs the classifier on the image
 			for (int j = 0; j < testData.size(); j++)
@@ -276,7 +301,7 @@ class ClassifierController
 
 			parallelAwarePrintln(instance, "\n Done.");
 		}
-		catch (ClassifierException | IOException | InterruptedException e)
+		catch (@NotNull ClassifierException | IOException | InterruptedException e)
 		{
 			e.printStackTrace();
 		}
@@ -289,7 +314,7 @@ class ClassifierController
 	 * @param instance     The current classifier instance
 	 * @param trainingData
 	 */
-	private static void evaluateClassifier(final IClassifier instance, final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
+	private static void evaluateClassifier(final @NotNull IClassifier instance, final @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> trainingData)
 	{
 		//			 OpenIMAJ evaluation method.
 		final ClassificationEvaluator<CMResult<String>, String, FImage> evaluator = new ClassificationEvaluator<CMResult<String>, String, FImage>(instance, trainingData,
@@ -306,22 +331,6 @@ class ClassifierController
 
 
 	/**
-	 * 80% of the training dataset is randomly selected as the trianing data, the other 20% is selected as validation data for use in the evaluator
-	 *
-	 * @param trainingData
-	 * @param trainingDataSize
-	 * @return
-	 */
-	private static GroupedRandomSplitter<String, FImage> splitTrainingData(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData,
-			final double trainingDataSize)
-	{
-		final int PERCENT80 = (int) Math.round(trainingDataSize * 0.8);
-		final int PERCENT20 = (int) Math.round(trainingDataSize * 0.2);
-		return new GroupedRandomSplitter<String, FImage>(trainingData, PERCENT80, PERCENT20, 0);
-	}
-
-
-	/**
 	 * Select the correct submission filename based on the current classifier
 	 *
 	 * @param instance           The current classifier instance
@@ -329,7 +338,7 @@ class ClassifierController
 	 * @return
 	 * @throws ClassifierException
 	 */
-	private static File setSubmissionFileLocation(final IClassifier instance, File tempSubmissionFile) throws ClassifierException
+	private static File setSubmissionFileLocation(final @NotNull IClassifier instance, File tempSubmissionFile) throws ClassifierException
 	{
 		switch (instance.getClassifierID())
 		{
@@ -359,21 +368,21 @@ class ClassifierController
 	 * @param submissionFile
 	 * @param j
 	 */
-	private void classifyImage(final IClassifier instance, final VFSListDataset<FImage> testDatasetToClassify, final File submissionFile, final int j)
+	private void classifyImage(final @NotNull IClassifier instance, final @NotNull VFSListDataset<FImage> testDatasetToClassify, final @NotNull File submissionFile, final int j)
 	{
 		try
 		{
 			final FImage img = testDatasetToClassify.get(j);
 			final String filename = testDatasetToClassify.getID(j);
 
-			ExecutorService printExecutor = Executors.newCachedThreadPool();
+			final ExecutorService printExecutor = Executors.newCachedThreadPool();
 
 			final ClassificationResult<String> predicted = instance.classify(img);
 			if (predicted != null)
 			{
 				if (consoleOutput)
 				{
-					printExecutor.execute(() -> printTestProgress(instance, testDatasetToClassify, j, filename, predicted));
+					printExecutor.execute(() -> printTestProgress(instance, j, filename, predicted));
 				}
 				if (writeSubmissionFile)
 				{
@@ -394,29 +403,19 @@ class ClassifierController
 	 * Output assembler for console output
 	 *
 	 * @param instance              The current classifier instance
-	 * @param classifiedTestDataset
 	 * @param j
 	 * @param file
 	 * @param predicted
 	 */
-	private static void printTestProgress(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
-			final ClassificationResult<String> predicted)
+	private static void printTestProgress(final @NotNull IClassifier instance, final int j, final String file, final @Nullable ClassificationResult<String> predicted)
 	{
 		if (predicted != null)
 		{
 			final String[] classes = getPredictedClassesArray(predicted);
 
-			buildAndPrintProgressString(instance, classifiedTestDataset, j, file, classes);
+			buildAndPrintProgressString(instance, j, file, classes);
 
 		}
-	}
-
-
-	@NotNull
-	private static String[] getPredictedClassesArray(final ClassificationResult<String> predicted)
-	{
-		final Set<String> predictedClasses = predicted.getPredictedClasses();
-		return predictedClasses.toArray(new String[predictedClasses.size()]);
 	}
 
 
@@ -427,7 +426,7 @@ class ClassifierController
 	 * @param imageName
 	 * @param predictedImageClasses
 	 */
-	private static void writeResult(File file, String imageName, ClassificationResult<String> predictedImageClasses)
+	private static void writeResult(@NotNull File file, String imageName, @Nullable ClassificationResult<String> predictedImageClasses)
 	{
 		if (predictedImageClasses != null)
 		{
@@ -445,7 +444,7 @@ class ClassifierController
 				sb.append(System.lineSeparator());
 				Files.write(file.toPath(), sb.toString().getBytes(), StandardOpenOption.APPEND);
 			}
-			catch (final IOException e)
+			catch (final @NotNull IOException e)
 			{
 				e.printStackTrace();
 			}
@@ -456,30 +455,35 @@ class ClassifierController
 	}
 
 
+	private static @NotNull String[] getPredictedClassesArray(final @NotNull ClassificationResult<String> predicted)
+	{
+		final Set<String> predictedClasses = predicted.getPredictedClasses();
+		return predictedClasses.toArray(new String[predictedClasses.size()]);
+	}
+
+
 	/**
 	 * String builder for console output, using image name and predicted class
 	 *
 	 * @param instance              The current classifier instance
-	 * @param classifiedTestDataset
 	 * @param j
 	 * @param file
 	 * @param classes
 	 */
-	private static void buildAndPrintProgressString(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
-			final String[] classes)
+	private static void buildAndPrintProgressString(final @NotNull IClassifier instance, final int j, final String file, final @NotNull String[] classes)
 	{
-		StringBuilder sb = new StringBuilder();
-		sb.append(file).append(" ");
+		final StringBuilder sb = new StringBuilder();
+		sb.append(file).append(' ');
 
 		for (final String cls : classes)
 		{
 			sb.append(cls);
-			sb.append(" ");
+			sb.append(' ');
 		}
 		sb.append(System.lineSeparator());
 		try
 		{
-			sb.append("\r").append("[").append(instance.getClassifierID()).append("] -- ");
+			sb.append('\r').append('[').append(instance.getClassifierID()).append("] -- ");
 		}
 		catch (ClassifierException e)
 		{

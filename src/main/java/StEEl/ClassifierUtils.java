@@ -1,5 +1,8 @@
 package StEEl;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.List;
@@ -11,7 +14,7 @@ public class ClassifierUtils
 	private ClassifierUtils() {}
 
 
-	public static void parallelAwarePrintln(IClassifier instance, String out)
+	public static void parallelAwarePrintln(@NotNull IClassifier instance, String out)
 	{
 		try
 		{
@@ -25,7 +28,7 @@ public class ClassifierUtils
 	}
 
 
-	public static void parallelAwarePrint(IClassifier instance, String out)
+	public static void parallelAwarePrint(@NotNull IClassifier instance, String out)
 	{
 		try
 		{
@@ -39,13 +42,14 @@ public class ClassifierUtils
 	}
 
 
-	public static <E> List<E> pickNRandomElements(List<E> list, int n)
+	@Nullable
+	public static <E> List<E> pickNRandomElements(@NotNull List<E> list, int n)
 	{
 		return pickNRandomElements(list, n, new Random());
 	}
 
 
-	private static <E> List<E> pickNRandomElements(List<E> list, int n, Random r)
+	private static <E> List<E> pickNRandomElements(@NotNull List<E> list, int n, @NotNull Random r)
 	{
 		int length = list.size();
 

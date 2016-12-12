@@ -1,5 +1,6 @@
 package StEEl.run1;
 
+import org.jetbrains.annotations.NotNull;
 import org.openimaj.feature.DoubleFV;
 import org.openimaj.feature.FeatureExtractor;
 import org.openimaj.image.FImage;
@@ -23,7 +24,7 @@ class TinyImageFeatureExtractor implements FeatureExtractor<DoubleFV, FImage>
 
 
 	@Override
-	public final DoubleFV extractFeature(FImage object)
+	public final @NotNull DoubleFV extractFeature(@NotNull FImage object)
 	{
 		//The tiny image has to be a square, takes the smallest dimension
 		final int size = Math.min(object.width, object.height);

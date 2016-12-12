@@ -2,6 +2,8 @@ package StEEl.run3;
 
 import StEEl.AbstractClassifier;
 import StEEl.ClassifierUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.openimaj.data.DataSource;
 import org.openimaj.data.dataset.Dataset;
 import org.openimaj.data.dataset.GroupedDataset;
@@ -13,15 +15,11 @@ import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
 import org.openimaj.feature.DoubleFV;
 import org.openimaj.feature.FeatureExtractor;
-import org.openimaj.feature.SparseIntFV;
 import org.openimaj.feature.local.data.LocalFeatureListDataSource;
 import org.openimaj.feature.local.list.LocalFeatureList;
 import org.openimaj.image.FImage;
 import org.openimaj.image.feature.dense.gradient.dsift.ByteDSIFTKeypoint;
 import org.openimaj.image.feature.dense.gradient.dsift.DenseSIFT;
-import org.openimaj.image.feature.dense.gradient.dsift.PyramidDenseSIFT;
-import org.openimaj.image.feature.local.aggregate.BagOfVisualWords;
-import org.openimaj.image.feature.local.aggregate.BlockSpatialAggregator;
 import org.openimaj.ml.annotation.bayes.NaiveBayesAnnotator;
 import org.openimaj.ml.clustering.ByteCentroidsResult;
 import org.openimaj.ml.clustering.assignment.HardAssigner;
@@ -31,22 +29,26 @@ import org.openimaj.util.pair.IntFloatPair;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ComplexClassifier extends AbstractClassifier {
-	private NaiveBayesAnnotator<FImage, String> annotator = null;
-	private static final int CLUSTERS = 25;
-    private static final int STEP = 4;
-    private static final int BINSIZE = 8;
-    private static final int DEFAULT_SIFT_LIMIT = 10000;
+public class ComplexClassifier extends AbstractClassifier
+{
 
-    private static final float E_THRESHOLD = 0.015f;
+	private static final   int                                 CLUSTERS           = 25;
+	protected static final int                                 STEP               = 4;
+	protected static final int                                 BINSIZE            = 8;
+	private static final   int                                 DEFAULT_SIFT_LIMIT = 10000;
+	protected static final float                               E_THRESHOLD        = 0.015f;
+	private @Nullable      NaiveBayesAnnotator<FImage, String> annotator          = null;
+
 
 	public ComplexClassifier(final int classifierID)
 	{
 		super(classifierID);
 	}
 
+
 	//Temporary function to run classifier without use of lambdas or threads to get around Exceptions being thrown
-	public void NonThreadedRun(GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingDataset, VFSListDataset<FImage> testDataset ) {
+	public final void nonThreadedRun(@NotNull GroupedDataset<String, VFSListDataset<FImage>, FImage> trainingDataset, @NotNull VFSListDataset<FImage> testDataset)
+	{
 		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
 		//Converts the inner image list from the VFS version to the genric version
@@ -54,17 +56,19 @@ public class ComplexClassifier extends AbstractClassifier {
 
 		final int trainingDataSize = trainingData.size();
 
-		final int PERCENT80 = (int) Math.round(trainingDataSize * 0.08);
-		final int PERCENT20 = (int) Math.round(trainingDataSize * 0.08);
-		final GroupedRandomSplitter<String, FImage> trainingSplitter = new GroupedRandomSplitter<String, FImage>(trainingData, PERCENT80, PERCENT20, 0);
+		final int percent80 = (int) Math.round((double) trainingDataSize * 0.08);
+		final int percent20 = (int) Math.round((double) trainingDataSize * 0.08);
+		final GroupedRandomSplitter<String, FImage> trainingSplitter = new GroupedRandomSplitter<String, FImage>(trainingData, percent80, percent20, 0);
 
-		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
+		final GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
 
 		train(newTrainingDataset);
-		for (FImage image : testDataset) {
+		for (final FImage image : testDataset)
+		{
 			System.out.println(classify(image).getPredictedClasses());
 		}
 	}
+
 
 	/**
 	 * Train the classifier with a training set
@@ -72,7 +76,7 @@ public class ComplexClassifier extends AbstractClassifier {
 	 * @param trainingSet
 	 */
 	@Override
-	public final void train(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
+	public final void train(final @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
 	{
 		//Dense sift pyramid
 		final DenseSIFT denseSIFT = new DenseSIFT(STEP, BINSIZE);
@@ -100,17 +104,29 @@ public class ComplexClassifier extends AbstractClassifier {
 	 * @return classes and scores for the object.
 	 */
 	@Override
-	public final ClassificationResult<String> classify(final FImage image) {
-		return annotator.classify(image);
+	public final ClassificationResult<String> classify(final FImage image)
+	{
+		return (annotator != null) ? annotator.classify(image) : null;
 	}
 
-	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final ComplexClassifier instance, Dataset<FImage> dataset, final DenseSIFT pdsift, final int siftLimit) {
+
+	//Generate visual words
+	static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final ComplexClassifier instance, @NotNull Dataset<FImage> dataset, final @NotNull DenseSIFT pdsift)
+	{
+		return trainQuantiser(instance, dataset, pdsift, DEFAULT_SIFT_LIMIT);
+	}
+
+
+	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final ComplexClassifier instance, @NotNull Dataset<FImage> dataset, final @NotNull DenseSIFT pdsift,
+			final int siftLimit)
+	{
 
 		//List of sift features from training set
-		final List<LocalFeatureList<ByteDSIFTKeypoint>> allKeys = new ArrayList();
+		final List<LocalFeatureList<ByteDSIFTKeypoint>> allKeys = new ArrayList<>();
 
 		//For each image
-		for (FImage image : dataset) {
+		for (final FImage image : dataset)
+		{
 			//Get sift features
 			pdsift.analyseImage(image);
 			allKeys.add(pdsift.getByteKeypoints());
@@ -128,35 +144,4 @@ public class ComplexClassifier extends AbstractClassifier {
 		return result.defaultHardAssigner();
 	}
 
-	//Generate visual words
-	static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final ComplexClassifier instance, Dataset<FImage> dataset, final DenseSIFT pdsift) {
-		return trainQuantiser(instance, dataset, pdsift, DEFAULT_SIFT_LIMIT);
-	}
-
-
-	//Extract bag of visual words feature vector
-	class PHOWExtractor implements FeatureExtractor<DoubleFV, FImage>
-	{
-		final HardAssigner<byte[], float[], IntFloatPair> assigner;
-
-		public PHOWExtractor(HardAssigner<byte[], float[], IntFloatPair> assigner) {
-			this.assigner = assigner;
-		}
-
-		final public DoubleFV extractFeature(FImage image) {
-            final DenseSIFT denseSIFT = new DenseSIFT(STEP, BINSIZE);
-
-			//Get sift features of input image
-            denseSIFT.analyseImage(image);
-
-			//Bag of visual words histogram representation
-			final BagOfVisualWords<byte[]> bovw = new BagOfVisualWords<>(assigner);
-
-			//Bag of visual words for blocks and combine
-			final BlockSpatialAggregator<byte[], SparseIntFV> spatialAggregator = new BlockSpatialAggregator<>(bovw, 2, 2);
-
-			//Return normalised feature vector
-			return spatialAggregator.aggregate(denseSIFT.getByteKeypoints(E_THRESHOLD), image.getBounds()).normaliseFV();
-		}
-	}
 }

@@ -6,8 +6,8 @@ package StEEl;
 class App
 {
 
-	private static final boolean writeSubmissionFileArg = true;
-	private static final boolean consoleOutputArg       = true;
+	private static final boolean WRITE_SUBMISSION_FILE_ARG = true;
+	private static final boolean CONSOLE_OUTPUT_ARG        = true;
 
 
 	private App() {}
@@ -20,7 +20,7 @@ class App
 	{
 		final ClassifierController classifiers = new ClassifierController();
 		//Parameters might be changed to console arguments later, for now they are both true, console and file output is enabled
-		classifiers.runClassifiers(consoleOutputArg, writeSubmissionFileArg);
+		classifiers.runClassifiers(CONSOLE_OUTPUT_ARG, WRITE_SUBMISSION_FILE_ARG);
 	}
 
 }
