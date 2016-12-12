@@ -232,7 +232,12 @@ class ClassifierController
 		return new GroupedRandomSplitter<String, FImage>(trainingData, percent80, percent20, 0);
 	}
 
-
+	/**
+	 * Adds slightly rotated copies of every image in the set to improve classifier rotation invariance
+	 *
+	 * @param dataset Dataset of images to add rotation to
+	 * @return Dataset containing original images and slightly rotated copies
+	 */
 	private static @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> addRotationImages(@NotNull GroupedDataset<String, ListDataset<FImage>, FImage> dataset)
 	{
 		final ListDataset<FImage> newImages = new ListBackedDataset<>();

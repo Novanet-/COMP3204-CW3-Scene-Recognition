@@ -33,7 +33,6 @@ public class ComplexClassifier extends AbstractClassifier
 	protected static final int                                 BINSIZE            = 8;
 	protected static final float                               E_THRESHOLD        = 0.015f;
 	private static final   int                                 CLUSTERS           = 25;
-	private static final   int                                 DEFAULT_SIFT_LIMIT = 10000;
 	private @Nullable      NaiveBayesAnnotator<FImage, String> annotator          = null;
 
 
@@ -75,33 +74,28 @@ public class ComplexClassifier extends AbstractClassifier
 		}
 	}
 
-
-	//Generate visual words
-	static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final @NotNull ComplexClassifier instance, @NotNull Dataset<FImage> dataset, final @NotNull DenseSIFT pdsift)
-			throws InterruptedException
-	{
-		return trainQuantiser(instance, dataset, pdsift, DEFAULT_SIFT_LIMIT);
-	}
-
-
-	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final @NotNull ComplexClassifier instance, @NotNull Dataset<FImage> dataset, final @NotNull DenseSIFT pdsift,
-			final int siftLimit) throws InterruptedException
+	/**
+	 * Build a HardAssigner based on k-means ran on features extracted with dense SIFT
+	 *
+	 * @param instance
+	 * @param dataset   The dataset to use for creating the HardAssigner.
+	 * @param dsift The instance of dense SIFT to use for extracting features
+	 */
+	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final @NotNull ComplexClassifier instance, @NotNull Dataset<FImage> dataset, final @NotNull DenseSIFT dsift) throws InterruptedException
 	{
 
 		//List of sift features from training set
 		final AtomicReference<List<LocalFeatureList<ByteDSIFTKeypoint>>> allKeys = new AtomicReference<>(new ArrayList<>());
 
 		//For each image
-		for (final FImage image : dataset)
-		{
-
+		for (final FImage image : dataset) {
 			//Get sift features
-			pdsift.analyseImage(image);
-			allKeys.get().add(pdsift.getByteKeypoints());
+			dsift.analyseImage(image);
+			allKeys.get().add(dsift.getByteKeypoints());
 
 		}
 
-		//Create a kmeans classifier with 600 categories (600 visual words)
+		//Create a kmeans classifier
 		final ByteKMeans kMeans = ByteKMeans.createKDTreeEnsemble(CLUSTERS);
 		final DataSource<byte[]> dataSource = new LocalFeatureListDataSource<>(allKeys.get());
 
