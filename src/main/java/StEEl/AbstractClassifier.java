@@ -8,6 +8,7 @@ public abstract class AbstractClassifier implements IClassifier
 
 	protected AbstractClassifier(int classifierID)
 	{
+		super();
 		this.classifierID = classifierID;
 	}
 

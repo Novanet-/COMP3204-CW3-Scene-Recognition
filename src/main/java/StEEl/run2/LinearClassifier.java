@@ -3,10 +3,10 @@ package StEEl.run2;
 import StEEl.AbstractClassifier;
 import StEEl.ClassifierUtils;
 import de.bwaldvogel.liblinear.SolverType;
-import org.openimaj.data.dataset.Dataset;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.ListDataset;
-import org.openimaj.experiment.dataset.sampling.UniformRandomisedSampler;
 import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.dataset.split.TrainSplitProvider;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
@@ -32,16 +32,14 @@ import java.util.List;
 public class LinearClassifier extends AbstractClassifier
 {
 
-	public static final  float[][] A               = new float[ ][] {};
-	// Clustering parameters
-	private static final int CLUSTERS              = 500;
-	private static final int IMAGES_FOR_VOCABULARY = 10;
-
+	public static final  float[][]                          A                     = {};
 	// Patch parameters
-	public static final float STEP       = 8.0F;
-	public static final float PATCH_SIZE = 12.0F;
-
-	private LiblinearAnnotator<FImage, String> annotator = null;
+	public static final  float                              STEP                  = 8.0F;
+	public static final  float                              PATCH_SIZE            = 12.0F;
+	// Clustering parameters
+	private static final int                                CLUSTERS              = 500;
+	private static final int                                IMAGES_FOR_VOCABULARY = 10;
+	private @Nullable    LiblinearAnnotator<FImage, String> annotator             = null;
 
 
 	public LinearClassifier(final int classifierID)
@@ -51,10 +49,10 @@ public class LinearClassifier extends AbstractClassifier
 
 
 	@Override
-	public final void train(GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
+	public final void train(@NotNull GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
 	{
 		// build vocabulary using images from all classes.
-		final TrainSplitProvider rndspl = new GroupedRandomSplitter<String, FImage>(trainingSet, IMAGES_FOR_VOCABULARY, 0, 0);
+		final TrainSplitProvider<GroupedDataset<String, ListDataset<FImage>, FImage>> rndspl = new GroupedRandomSplitter<String, FImage>(trainingSet, IMAGES_FOR_VOCABULARY, 0, 0);
 		final HardAssigner<float[], float[], IntFloatPair> assigner = trainQuantiser(this, rndspl.getTrainingDataset());
 
 		// create FeatureExtractor.
@@ -71,32 +69,15 @@ public class LinearClassifier extends AbstractClassifier
 
 
 	/**
-	 * Classify an object.
-	 *
-	 * @param image the object to classify.
-	 * @return classes and scores for the object.
-	 */
-	@Override
-	public final ClassificationResult<String> classify(final FImage image)
-	{
-		return annotator.classify(image);
-	}
-
-
-	/**
 	 * Build a HardAssigner based on k-means ran on randomly picked patches from images.
 	 *
 	 * @param instance
-	 * @param sample The dataset to use for creating the HardAssigner.
+	 * @param sample   The dataset to use for creating the HardAssigner.
 	 */
-	private static HardAssigner<float[], float[], IntFloatPair> trainQuantiser(final LinearClassifier instance, Dataset<FImage> sample)
+	private static @NotNull HardAssigner<float[], float[], IntFloatPair> trainQuantiser(final LinearClassifier instance, @NotNull Iterable<FImage> sample)
 	{
 		final List<float[]> allkeys = new ArrayList<float[]>();
-
 		int count = 0;
-
-		UniformRandomisedSampler<LocalFeature<SpatialLocation, FloatFV>> listsampler = new UniformRandomisedSampler<LocalFeature<SpatialLocation, FloatFV>>(10);
-
 
 		// extract patches
 		for (final FImage image : sample)
@@ -106,11 +87,14 @@ public class LinearClassifier extends AbstractClassifier
 			final List<LocalFeature<SpatialLocation, FloatFV>> allPatches = extract(image, STEP, PATCH_SIZE);
 
 			final List<LocalFeature<SpatialLocation, FloatFV>> sampleList = ClassifierUtils.pickNRandomElements(allPatches, 10);
-			ClassifierUtils.parallelAwarePrintln(instance, String.valueOf(sampleList.size()));
+			ClassifierUtils.parallelAwarePrintln(instance, String.valueOf((sampleList != null) ? sampleList.size() : 0));
 
-			for (final LocalFeature<SpatialLocation, FloatFV> lf : sampleList)
+			if (sampleList != null)
 			{
-				allkeys.add(lf.getFeatureVector().values);
+				for (final LocalFeature<SpatialLocation, FloatFV> lf : sampleList)
+				{
+					allkeys.add(lf.getFeatureVector().values);
+				}
 			}
 			count++;
 		}
@@ -133,16 +117,14 @@ public class LinearClassifier extends AbstractClassifier
 	 *
 	 * @param image      The image to extract features from.
 	 * @param step       The step size.
-	 * @param patch_size The size of the patches.
+	 * @param patchSize The size of the patches.
 	 */
-	protected static List<LocalFeature<SpatialLocation, FloatFV>> extract(FImage image, float step, float patch_size)
+	protected static @NotNull List<LocalFeature<SpatialLocation, FloatFV>> extract(final @NotNull FImage image, float step, float patchSize)
 	{
 		final List<LocalFeature<SpatialLocation, FloatFV>> areaList = new ArrayList<LocalFeature<SpatialLocation, FloatFV>>();
 
 		// Create patch positions
-		final RectangleSampler rect = new RectangleSampler(image, step, step, patch_size, patch_size);
-
-
+		final RectangleSampler rect = new RectangleSampler(image, step, step, patchSize, patchSize);
 
 		// Extract feature from position r.
 		for (final Rectangle r : rect)
@@ -160,8 +142,22 @@ public class LinearClassifier extends AbstractClassifier
 			final LocalFeature<SpatialLocation, FloatFV> lf = new LocalFeatureImpl<SpatialLocation, FloatFV>(sl, featureV);
 
 			areaList.add(lf);
+
 		}
 
 		return areaList;
+	}
+
+
+	/**
+	 * Classify an object.
+	 *
+	 * @param image the object to classify.
+	 * @return classes and scores for the object.
+	 */
+	@Override
+	public final @Nullable ClassificationResult<String> classify(final FImage image)
+	{
+		return (annotator != null) ? annotator.classify(image) : null;
 	}
 }
