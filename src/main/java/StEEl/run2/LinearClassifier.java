@@ -99,7 +99,9 @@ public class LinearClassifier extends AbstractClassifier
 		{
 			ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Extracting RoI areas Image {0}", count));
 
-			final List<LocalFeature<SpatialLocation, FloatFV>> sampleList = extract(image, STEP, PATCH_SIZE);
+			final List<LocalFeature<SpatialLocation, FloatFV>> allPatches = extract(image, STEP, PATCH_SIZE);
+			final List<LocalFeature<SpatialLocation, FloatFV>> sampleList = ClassifierUtils.pickNRandomElements(allPatches, 10);
+
 			ClassifierUtils.parallelAwarePrintln(instance, String.valueOf(sampleList.size()));
 
 			for (final LocalFeature<SpatialLocation, FloatFV> lf : sampleList)
