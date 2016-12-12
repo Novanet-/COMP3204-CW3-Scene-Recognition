@@ -10,7 +10,6 @@ import org.openimaj.data.dataset.ListDataset;
 import org.openimaj.data.dataset.VFSGroupDataset;
 import org.openimaj.data.dataset.VFSListDataset;
 import org.openimaj.experiment.dataset.sampling.GroupSampler;
-import org.openimaj.experiment.dataset.sampling.GroupedUniformRandomisedSampler;
 import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.evaluation.classification.ClassificationEvaluator;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
@@ -199,7 +198,7 @@ class ClassifierController
 	 */
 	private GroupedDataset<String, ListDataset<FImage>, FImage> createTrainingAndValidationData(final IClassifier instance)
 	{
-		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
+//		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
 		//Converts the inner image list from the VFS version to the genric version
 		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
