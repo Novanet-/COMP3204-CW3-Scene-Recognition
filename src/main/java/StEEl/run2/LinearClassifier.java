@@ -14,7 +14,6 @@ import org.openimaj.feature.local.LocalFeature;
 import org.openimaj.feature.local.LocalFeatureImpl;
 import org.openimaj.feature.local.SpatialLocation;
 import org.openimaj.image.FImage;
-import org.openimaj.image.feature.local.aggregate.BagOfVisualWords;
 import org.openimaj.image.pixel.sampling.RectangleSampler;
 import org.openimaj.math.geometry.shape.Rectangle;
 import org.openimaj.ml.annotation.linear.LiblinearAnnotator;
@@ -57,7 +56,7 @@ public class LinearClassifier extends AbstractClassifier
 		final HardAssigner<float[], float[], IntFloatPair> assigner = trainQuantiser(this, rndspl.getTrainingDataset());
 
 		// create FeatureExtractor.
-		final BagOfVisualWords<float[]> bovw = new BagOfVisualWords<float[]>(assigner);
+//		final BagOfVisualWords<float[]> bovw = new BagOfVisualWords<float[]>(assigner);
 		final BagOfVisualWordsExtractor extractor = new BagOfVisualWordsExtractor(assigner);
 
 		// Create and train a linear classifier.
@@ -100,7 +99,7 @@ public class LinearClassifier extends AbstractClassifier
 			ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Extracting RoI areas Image {0}", count));
 
 			final List<LocalFeature<SpatialLocation, FloatFV>> allPatches = extract(image, STEP, PATCH_SIZE);
-			final List<LocalFeature<SpatialLocation, FloatFV>> sampleList = ClassifierUtils.pickNRandomElements(allPatches, 10);
+			final List<LocalFeature<SpatialLocation, FloatFV>> sampleList = ClassifierUtils.pickNRandomElements(allPatches, 50);
 
 			ClassifierUtils.parallelAwarePrintln(instance, String.valueOf(sampleList.size()));
 
