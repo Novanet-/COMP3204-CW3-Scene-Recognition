@@ -6,6 +6,7 @@ import de.bwaldvogel.liblinear.SolverType;
 import org.openimaj.data.dataset.Dataset;
 import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.ListDataset;
+import org.openimaj.experiment.dataset.sampling.UniformRandomisedSampler;
 import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.dataset.split.TrainSplitProvider;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
@@ -94,12 +95,17 @@ public class LinearClassifier extends AbstractClassifier
 
 		int count = 0;
 
+		UniformRandomisedSampler<LocalFeature<SpatialLocation, FloatFV>> listsampler = new UniformRandomisedSampler<LocalFeature<SpatialLocation, FloatFV>>(10);
+
+
 		// extract patches
 		for (final FImage image : sample)
 		{
 			ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Extracting RoI areas Image {0}", count));
 
-			final List<LocalFeature<SpatialLocation, FloatFV>> sampleList = extract(image, STEP, PATCH_SIZE);
+			final List<LocalFeature<SpatialLocation, FloatFV>> allPatches = extract(image, STEP, PATCH_SIZE);
+
+			final List<LocalFeature<SpatialLocation, FloatFV>> sampleList = ClassifierUtils.pickNRandomElements(allPatches, 10);
 			ClassifierUtils.parallelAwarePrintln(instance, String.valueOf(sampleList.size()));
 
 			for (final LocalFeature<SpatialLocation, FloatFV> lf : sampleList)

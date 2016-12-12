@@ -12,7 +12,6 @@ import org.openimaj.experiment.evaluation.classification.ClassificationEvaluator
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
 import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMAnalyser;
 import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMResult;
-import org.openimaj.image.DisplayUtilities;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.processing.transform.AffineSimulation;
@@ -21,8 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -94,21 +91,21 @@ class ClassifierController
 */
 			//Synchronous execution
 			//Execute each tasks one at a time, waiting for each one to finish before invoking the next
-			topExecutor.execute(c1task);
-			topExecutor.shutdown();
-			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
-
+//			topExecutor.execute(c1task);
+//			topExecutor.shutdown();
+//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+//
 			topExecutor = Executors.newCachedThreadPool();
 
 			topExecutor.execute(c2task);
 			topExecutor.shutdown();
 			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 
-			topExecutor = Executors.newCachedThreadPool();
-
-			topExecutor.execute(c3task);
-			topExecutor.shutdown();
-			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+//			topExecutor = Executors.newCachedThreadPool();
+//
+//			topExecutor.execute(c3task);
+//			topExecutor.shutdown();
+//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 		}
 		catch (final IOException | InterruptedException e)
 		{
