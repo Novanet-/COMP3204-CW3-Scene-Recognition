@@ -94,21 +94,21 @@ class ClassifierController
 
 			//Synchronous execution
 			//Execute each tasks one at a time, waiting for each one to finish before invoking the next
-			topExecutor.execute(c1task);
-			topExecutor.shutdown();
-			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+//			topExecutor.execute(c1task);
+//			topExecutor.shutdown();
+//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+//
+//			topExecutor = Executors.newCachedThreadPool();
+//
+//			topExecutor.execute(c2task);
+//			topExecutor.shutdown();
+//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 
-			topExecutor = Executors.newCachedThreadPool();
-
-			topExecutor.execute(c2task);
-			topExecutor.shutdown();
-			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
-
-			topExecutor = Executors.newCachedThreadPool();
-
-			topExecutor.execute(c3task);
-			topExecutor.shutdown();
-			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+//			topExecutor = Executors.newCachedThreadPool();
+//
+//			topExecutor.execute(c3task);
+//			topExecutor.shutdown();
+//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 		}
 		catch (final IOException | InterruptedException e)
 		{
@@ -202,15 +202,15 @@ class ClassifierController
 		final GroupedUniformRandomisedSampler<String, FImage> groupSampler = new GroupedUniformRandomisedSampler<>(1.0d);
 
 		//Converts the inner image list from the VFS version to the genric version
-		GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
+		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
 
-		final int trainingDataSize = trainingData.size();
-		final GroupedRandomSplitter<String, FImage> trainingSplitter = splitTrainingData(trainingData, (double) trainingDataSize);
+		final int trainingDataSizePerGroup = 100;
+		final GroupedRandomSplitter<String, FImage> trainingSplitter = splitTrainingData(trainingData, (double) trainingDataSizePerGroup);
 
-		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
+		final GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
 		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
 
-		parallelAwarePrintln(instance, "Training set size = " + trainingDataSize);
+		parallelAwarePrintln(instance, "Training set size = " + trainingDataSizePerGroup);
 		return newTrainingDataset;
 	}
 
@@ -243,7 +243,7 @@ class ClassifierController
 			Files.deleteIfExists(submissionFile.toPath());
 			Files.write(submissionFile.toPath(), "".getBytes(), StandardOpenOption.CREATE);
 
-			ExecutorService classifyExecutor = Executors.newCachedThreadPool();
+			final ExecutorService classifyExecutor = Executors.newCachedThreadPool();
 
 			//Iterates through each test image, runs the classifier on the image
 			for (int j = 0; j < testData.size(); j++)
@@ -300,8 +300,9 @@ class ClassifierController
 			final double trainingDataSize)
 	{
 		final int PERCENT80 = (int) Math.round(trainingDataSize * 0.8);
-		final int PERCENT20 = (int) Math.round(trainingDataSize * 0.2);
-		return new GroupedRandomSplitter<String, FImage>(trainingData, PERCENT80, PERCENT20, 0);
+		final int PERCENT15 = (int) Math.round(trainingDataSize * 0.15);
+		final int PERCENT5 = (int) Math.round(trainingDataSize * 0.05);
+		return new GroupedRandomSplitter<String, FImage>(trainingData, PERCENT80, PERCENT15, PERCENT5);
 	}
 
 
