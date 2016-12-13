@@ -5,10 +5,7 @@ import StEEl.run2.LinearClassifier;
 import StEEl.run3.ComplexClassifier;
 import org.apache.commons.vfs2.FileSystemException;
 import org.jetbrains.annotations.NotNull;
-import org.openimaj.data.dataset.GroupedDataset;
-import org.openimaj.data.dataset.ListDataset;
-import org.openimaj.data.dataset.VFSGroupDataset;
-import org.openimaj.data.dataset.VFSListDataset;
+import org.openimaj.data.dataset.*;
 import org.openimaj.experiment.dataset.sampling.GroupSampler;
 import org.openimaj.experiment.dataset.sampling.GroupedUniformRandomisedSampler;
 import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
@@ -18,6 +15,7 @@ import org.openimaj.experiment.evaluation.classification.analysers.confusionmatr
 import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMResult;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
+import org.openimaj.image.processing.transform.AffineSimulation;
 
 import java.io.File;
 import java.io.IOException;
@@ -204,16 +202,45 @@ class ClassifierController
 		//Converts the inner image list from the VFS version to the genric version
 		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = GroupSampler.sample(trainingDataset, trainingDataset.size(), false);
 
-		final int trainingDataSizePerGroup = 100;
+		final int trainingDataSizePerGroup = 30;
 		final GroupedRandomSplitter<String, FImage> trainingSplitter = splitTrainingData(trainingData, (double) trainingDataSizePerGroup);
 
-		final GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
+		GroupedDataset<String, ListDataset<FImage>, FImage> newTrainingDataset = trainingSplitter.getTrainingDataset();
 		final GroupedDataset<String, ListDataset<FImage>, FImage> validationData = trainingSplitter.getValidationDataset();
 
-		parallelAwarePrintln(instance, "Training set size = " + trainingDataSizePerGroup);
+		newTrainingDataset = addRotationImages(newTrainingDataset);
+
+		parallelAwarePrintln(instance, "Training set size = " + newTrainingDataset.getInstances(newTrainingDataset.getGroups().iterator().next()).size() * newTrainingDataset.size());
 		return newTrainingDataset;
 	}
 
+	/**
+	 * Adds slightly rotated copies of every image in the set to improve classifier rotation invariance
+	 *
+	 * @param dataset Dataset of images to add rotation to
+	 * @return Dataset containing original images and slightly rotated copies
+	 */
+	private static @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> addRotationImages(@NotNull GroupedDataset<String, ListDataset<FImage>, FImage> dataset)
+	{
+		GroupedDataset<String, ListDataset<FImage>, FImage> newDataset = new MapBackedDataset();
+
+
+		for (final String key : dataset.keySet()) {
+			final ListDataset<FImage> newImages = new ListBackedDataset<>();
+
+			for (final FImage image : dataset.get(key)) {
+				newImages.add(image);
+				newImages.add(AffineSimulation.transformImage(image, 0.01f, 1));
+				newImages.add(AffineSimulation.transformImage(image, -0.01f, 1));
+				newImages.add(AffineSimulation.transformImage(image, 0.02f, 1));
+				newImages.add(AffineSimulation.transformImage(image, -0.02f, 1));
+			}
+
+			newDataset.put(key, newImages);
+		}
+
+		return newDataset;
+	}
 
 	/**
 	 * Calls the train method of the classifier to train it using the training data
