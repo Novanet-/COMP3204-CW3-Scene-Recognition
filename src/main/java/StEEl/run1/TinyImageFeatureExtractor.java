@@ -39,4 +39,10 @@ class TinyImageFeatureExtractor implements FeatureExtractor<DoubleFV, FImage>
 		return new DoubleFV(ArrayUtils.reshape(ArrayUtils.convertToDouble(small.pixels)));
 	}
 
+
+	@Override
+	public final String toString()
+	{
+		return "TinyImageFeatureExtractor{" + "squareSize=" + squareSize + '}';
+	}
 }

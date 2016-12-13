@@ -20,21 +20,22 @@ import org.openimaj.ml.annotation.bayes.NaiveBayesAnnotator;
 import org.openimaj.ml.clustering.ByteCentroidsResult;
 import org.openimaj.ml.clustering.assignment.HardAssigner;
 import org.openimaj.ml.clustering.kmeans.ByteKMeans;
+import org.openimaj.ml.kernel.HomogeneousKernelMap;
 import org.openimaj.util.pair.IntFloatPair;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ComplexClassifier extends AbstractClassifier
 {
 
-	protected static final int                                 STEP               = 4;
-	protected static final int                                 BINSIZE            = 8;
-	protected static final float                               E_THRESHOLD        = 0.015f;
-	private static final   int                                 CLUSTERS           = 25;
-	private static final   int                                 DEFAULT_SIFT_LIMIT = 10000;
-	private @Nullable      NaiveBayesAnnotator<FImage, String> annotator          = null;
+	protected static final int                                 STEP        = 4;
+	protected static final int                                 BINSIZE     = 8;
+	protected static final float                               E_THRESHOLD = 0.015f;
+	private static final   int                                 CLUSTERS    = 25;
+	private @Nullable      NaiveBayesAnnotator<FImage, String> annotator   = null;
 
 
 	public ComplexClassifier(final int classifierID)
@@ -42,68 +43,71 @@ public class ComplexClassifier extends AbstractClassifier
 		super(classifierID);
 	}
 
+
 	/**
 	 * Train the classifier with a training set
 	 *
 	 * @param trainingSet
 	 */
 	@Override
-	public final void train(final @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
+	public final void train(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
 	{
-		try
-		{
-			//Dense sift pyramid
-			final DenseSIFT denseSIFT = new DenseSIFT(STEP, BINSIZE);
+		//Dense sift pyramid
+		final DenseSIFT denseSIFT = new DenseSIFT(STEP, BINSIZE);
 
-			//Assigner assigning sift features to visual word, trainQuantiser
-			HardAssigner<byte[], float[], IntFloatPair> assigner = trainQuantiser(this, trainingSet, denseSIFT);
+		//Assigner assigning sift features to visual word, trainQuantiser
+		final HardAssigner<byte[], float[], IntFloatPair> assigner = trainQuantiser(this, trainingSet, denseSIFT);
 
-			//Feature extractor based on bag of visual words
-			final FeatureExtractor<DoubleFV, FImage> extractor = new PHOWExtractor(assigner);
+		HomogeneousKernelMap hkm = new HomogeneousKernelMap(HomogeneousKernelMap.KernelType.Chi2, HomogeneousKernelMap.WindowType.Rectangular);
 
-			//Create Bayesian annotator
-			annotator = new NaiveBayesAnnotator<>(extractor, NaiveBayesAnnotator.Mode.MAXIMUM_LIKELIHOOD);
+		//Feature extractor based on bag of visual words
+		final FeatureExtractor<DoubleFV, FImage> extractor = hkm.createWrappedExtractor(new PHOWExtractor(assigner));
 
-			//Start training
-			ClassifierUtils.parallelAwarePrintln(this, "Start training...");
-			annotator.train(trainingSet);
-			ClassifierUtils.parallelAwarePrintln(this, "Training finished.");
-		}
-		catch (InterruptedException e)
-		{
-			e.printStackTrace();
-		}
+		//Create Bayesian annotator
+		annotator = new NaiveBayesAnnotator<>(extractor, NaiveBayesAnnotator.Mode.MAXIMUM_LIKELIHOOD);
+
+		//Start training
+		ClassifierUtils.parallelAwarePrintln(this, "Start training...");
+		annotator.train(trainingSet);
+		ClassifierUtils.parallelAwarePrintln(this, "Training finished.");
 	}
 
 
-	//Generate visual words
-	static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final @NotNull ComplexClassifier instance, @NotNull Dataset<FImage> dataset, final @NotNull DenseSIFT pdsift)
-			throws InterruptedException
-	{
-		return trainQuantiser(instance, dataset, pdsift, DEFAULT_SIFT_LIMIT);
-	}
-
-
-	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final @NotNull ComplexClassifier instance, @NotNull Dataset<FImage> dataset, final @NotNull DenseSIFT pdsift,
-			final int siftLimit) throws InterruptedException
+	/**
+	 * Build a HardAssigner based on k-means ran on features extracted with dense SIFT
+	 *
+	 * @param instance
+	 * @param dataset  The dataset to use for creating the HardAssigner.
+	 * @param dsift    The instance of dense SIFT to use for extracting features
+	 */
+	private static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(final @NotNull ComplexClassifier instance, @NotNull Dataset<FImage> dataset,
+			final @NotNull DenseSIFT dsift)
 	{
 
 		//List of sift features from training set
-		final AtomicReference<List<LocalFeatureList<ByteDSIFTKeypoint>>> allKeys = new AtomicReference<>(new ArrayList<>());
+		List<LocalFeatureList<ByteDSIFTKeypoint>> allKeys = new ArrayList<LocalFeatureList<ByteDSIFTKeypoint>>();
+		final AtomicInteger count = new AtomicInteger(0);
 
 		//For each image
-		for (final FImage image : dataset)
+		for (FImage image : dataset)
 		{
-
+			ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Image {0}: Getting sift", count.get()));
 			//Get sift features
-			pdsift.analyseImage(image);
-			allKeys.get().add(pdsift.getByteKeypoints());
-
+			dsift.analyseImage(image);
+			allKeys.add(dsift.getByteKeypoints(0.005f));  //Energy threshold of 0.005f
+			count.getAndIncrement();
 		}
+
+		//Reduce feature set for time
+		if (allKeys.size() > 10000)
+		{
+			allKeys = allKeys.subList(0, 10000);
+		}
+
 
 		//Create a kmeans classifier with 600 categories (600 visual words)
 		final ByteKMeans kMeans = ByteKMeans.createKDTreeEnsemble(CLUSTERS);
-		final DataSource<byte[]> dataSource = new LocalFeatureListDataSource<>(allKeys.get());
+		final DataSource<byte[]> dataSource = new LocalFeatureListDataSource<>(allKeys);
 
 		//Generate clusters (Visual words) from sift features.
 		ClassifierUtils.parallelAwarePrintln(instance, "Start clustering.");
@@ -125,5 +129,4 @@ public class ComplexClassifier extends AbstractClassifier
 	{
 		return (annotator != null) ? annotator.classify(image) : null;
 	}
-
 }

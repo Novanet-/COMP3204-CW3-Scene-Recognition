@@ -2,8 +2,6 @@ package StEEl.run1;
 
 import StEEl.AbstractClassifier;
 import StEEl.ClassifierUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.ListDataset;
 import org.openimaj.experiment.evaluation.classification.BasicClassificationResult;
@@ -18,6 +16,9 @@ import java.io.Serializable;
 import java.text.MessageFormat;
 import java.util.*;
 
+/**
+ *
+ */
 public class TinyImageClassifier extends AbstractClassifier
 {
 
@@ -28,12 +29,15 @@ public class TinyImageClassifier extends AbstractClassifier
 	//Number of nearest neighbours to considers
 	private static final int   K_VALUE     = 15;
 
-	private @Nullable DoubleNearestNeighboursExact knn;
+	private DoubleNearestNeighboursExact knn;
 
 	//The classes of the training feature vectors (array indices correspond to featureVector indices)
-	private @Nullable List<String> classes;
+	private List<String> classes;
 
 
+	/**
+	 * @param classifierID
+	 */
 	public TinyImageClassifier(final int classifierID)
 	{
 		super(classifierID);
@@ -48,7 +52,7 @@ public class TinyImageClassifier extends AbstractClassifier
 	 * @param trainingSet
 	 */
 	@Override
-	public final void train(final @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
+	public final void train(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
 	{
 		classes = new ArrayList<String>();
 		final List<double[]> featureVectors = new ArrayList<double[]>();
@@ -80,7 +84,7 @@ public class TinyImageClassifier extends AbstractClassifier
 	}
 
 
-	private static double[] extractNormalisedFeature(final @NotNull FeatureExtractor<DoubleFV, FImage> ve, final FImage image)
+	private static double[] extractNormalisedFeature(final FeatureExtractor<DoubleFV, FImage> ve, final FImage image)
 	{
 		final DoubleFV featureVector = ve.extractFeature(image);
 
@@ -98,7 +102,7 @@ public class TinyImageClassifier extends AbstractClassifier
 	 * @return classes and scores for the object.
 	 */
 	@Override
-	public final @NotNull ClassificationResult<String> classify(final FImage image)
+	public final ClassificationResult<String> classify(final FImage image)
 	{
 		//Create a tiny image feature extractor
 		final FeatureExtractor<DoubleFV, FImage> vectorExtractor = new TinyImageFeatureExtractor(SQUARE_SIZE);
@@ -106,10 +110,9 @@ public class TinyImageClassifier extends AbstractClassifier
 		final double[] featureVectorArray = extractNormalisedFeature(vectorExtractor, image);
 
 		//Find k nearest neighbours (match the images "tiny image" with all the "tiny images" in the training set
-		final @Nullable List<IntDoublePair> neighbours = (knn != null) ? knn.searchKNN(featureVectorArray, K_VALUE) : null;
+		final List<IntDoublePair> neighbours = knn.searchKNN(featureVectorArray, K_VALUE);
 
 		//Count the amount of each image class that are neighbours to the current image
-		assert neighbours != null;
 		final Map<String, Integer> classCount = countNeighbourClasses(neighbours);
 
 		//Het the lsit of image classes, and their occurence amount in the knn search
@@ -117,7 +120,7 @@ public class TinyImageClassifier extends AbstractClassifier
 		final List<Map.Entry<String, Integer>> classGuessList = new ArrayList<Map.Entry<String, Integer>>(classEntries);
 
 		//Sort list of class appearances in descending order
-		Collections.sort(classGuessList, new TinyImageClassifier.ClassEntryComparator());
+		classGuessList.sort(new ClassEntryComparator());
 
 		//The percentage of the K neighbours which were members of the class which gained a plurality, the higher the proportion of the neighbours which are the winning class,
 		//the higher the confidence of that guess
@@ -134,7 +137,7 @@ public class TinyImageClassifier extends AbstractClassifier
 	}
 
 
-	private @NotNull Map<String, Integer> countNeighbourClasses(final @NotNull Iterable<IntDoublePair> neighbours)
+	private Map<String, Integer> countNeighbourClasses(final Iterable<IntDoublePair> neighbours)
 	{
 		//Initialise the class:count map
 		final HashMap<String, Integer> classCount = new HashMap<String, Integer>();
@@ -143,7 +146,7 @@ public class TinyImageClassifier extends AbstractClassifier
 		for (final IntDoublePair result : neighbours)
 		{
 			//Get the neighbour class
-			final String resultClass = (classes != null) ? classes.get(result.first) : null;
+			final String resultClass = classes.get(result.first);
 
 			int newCount = 1;
 
@@ -167,11 +170,21 @@ public class TinyImageClassifier extends AbstractClassifier
 		private static final long serialVersionUID = 4971388574385290739L;
 
 
+		ClassEntryComparator() {super();}
+
+
 		@Override
-		public final int compare(@NotNull Map.Entry<String, Integer> o1, @NotNull Map.Entry<String, Integer> o2)
+		public final int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2)
 		{
 			final Integer value = o1.getValue();
 			return o2.getValue().compareTo(value);
 		}
+	}
+
+
+	@Override
+	public final String toString()
+	{
+		return "TinyImageClassifier{" + "knn=" + knn + ", classes=" + classes + '}';
 	}
 }

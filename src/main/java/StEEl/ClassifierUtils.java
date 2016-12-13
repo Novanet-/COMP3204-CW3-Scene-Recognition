@@ -17,10 +17,10 @@ import java.util.Set;
 public class ClassifierUtils
 {
 
-	private ClassifierUtils() {super();}
+	private ClassifierUtils() {}
 
 
-	public static void parallelAwarePrintln(@NotNull IClassifier instance, String out)
+	public static void parallelAwarePrintln(IClassifier instance, String out)
 	{
 		try
 		{
@@ -34,7 +34,7 @@ public class ClassifierUtils
 	}
 
 
-	public static void parallelAwarePrint(@NotNull IClassifier instance, String out)
+	public static void parallelAwarePrint(IClassifier instance, String out)
 	{
 		try
 		{
@@ -91,7 +91,7 @@ public class ClassifierUtils
 	}
 
 
-	private static @NotNull String[] getPredictedClassesArray(final @NotNull ClassificationResult<String> predicted)
+	protected static @NotNull String[] getPredictedClassesArray(final @NotNull ClassificationResult<String> predicted)
 	{
 		final Set<String> predictedClasses = predicted.getPredictedClasses();
 		return predictedClasses.toArray(new String[predictedClasses.size()]);
@@ -106,7 +106,7 @@ public class ClassifierUtils
 	 * @param file
 	 * @param classes
 	 */
-	private static void buildAndPrintProgressString(final @NotNull IClassifier instance, final int j, final String file, final @NotNull String[] classes)
+	protected static void buildAndPrintProgressString(final @NotNull IClassifier instance, final int j, final String file, final @NotNull String[] classes)
 	{
 		final StringBuilder sb = new StringBuilder();
 		sb.append(file).append(' ');
