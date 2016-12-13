@@ -30,7 +30,7 @@ import java.util.List;
 public class LinearClassifier extends AbstractClassifier
 {
 
-	public static final  float[][] A               = new float[ ][] {};
+	public static final  float[][] A               = {};
 	// Clustering parameters
 	private static final int CLUSTERS              = 500;
 	private static final int IMAGES_FOR_VOCABULARY = 10;
@@ -42,6 +42,9 @@ public class LinearClassifier extends AbstractClassifier
 	private LiblinearAnnotator<FImage, String> annotator = null;
 
 
+	/**
+	 * @param classifierID
+	 */
 	public LinearClassifier(final int classifierID)
 	{
 		super(classifierID);
@@ -52,7 +55,7 @@ public class LinearClassifier extends AbstractClassifier
 	public final void train(GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
 	{
 		// build vocabulary using images from all classes.
-		final TrainSplitProvider rndspl = new GroupedRandomSplitter<String, FImage>(trainingSet, IMAGES_FOR_VOCABULARY, 0, 0);
+		final TrainSplitProvider<GroupedDataset<String, ListDataset<FImage>, FImage>> rndspl = new GroupedRandomSplitter<String, FImage>(trainingSet, IMAGES_FOR_VOCABULARY, 0, 0);
 		final HardAssigner<float[], float[], IntFloatPair> assigner = trainQuantiser(this, rndspl.getTrainingDataset());
 
 		// create FeatureExtractor.
@@ -130,7 +133,7 @@ public class LinearClassifier extends AbstractClassifier
 	 * @param step       The step size.
 	 * @param patch_size The size of the patches.
 	 */
-	protected static List<LocalFeature<SpatialLocation, FloatFV>> extract(FImage image, float step, float patch_size)
+	static List<LocalFeature<SpatialLocation, FloatFV>> extract(FImage image, float step, float patch_size)
 	{
 		final List<LocalFeature<SpatialLocation, FloatFV>> areaList = new ArrayList<LocalFeature<SpatialLocation, FloatFV>>();
 

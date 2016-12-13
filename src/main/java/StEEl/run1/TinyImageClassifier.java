@@ -16,6 +16,9 @@ import java.io.Serializable;
 import java.text.MessageFormat;
 import java.util.*;
 
+/**
+ *
+ */
 public class TinyImageClassifier extends AbstractClassifier
 {
 
@@ -26,12 +29,15 @@ public class TinyImageClassifier extends AbstractClassifier
 	//Number of nearest neighbours to considers
 	private static final int   K_VALUE     = 15;
 
-	private DoubleNearestNeighboursExact knn = null;
+	private DoubleNearestNeighboursExact knn;
 
 	//The classes of the training feature vectors (array indices correspond to featureVector indices)
-	private List<String> classes = null;
+	private List<String> classes;
 
 
+	/**
+	 * @param classifierID
+	 */
 	public TinyImageClassifier(final int classifierID)
 	{
 		super(classifierID);
@@ -78,7 +84,7 @@ public class TinyImageClassifier extends AbstractClassifier
 	}
 
 
-	private double[] extractNormalisedFeature(final FeatureExtractor<DoubleFV, FImage> ve, final FImage image)
+	private static double[] extractNormalisedFeature(final FeatureExtractor<DoubleFV, FImage> ve, final FImage image)
 	{
 		final DoubleFV featureVector = ve.extractFeature(image);
 
@@ -114,7 +120,7 @@ public class TinyImageClassifier extends AbstractClassifier
 		final List<Map.Entry<String, Integer>> classGuessList = new ArrayList<Map.Entry<String, Integer>>(classEntries);
 
 		//Sort list of class appearances in descending order
-		Collections.sort(classGuessList, new TinyImageClassifier.ClassEntryComparator());
+		classGuessList.sort(new ClassEntryComparator());
 
 		//The percentage of the K neighbours which were members of the class which gained a plurality, the higher the proportion of the neighbours which are the winning class,
 		//the higher the confidence of that guess
@@ -164,11 +170,21 @@ public class TinyImageClassifier extends AbstractClassifier
 		private static final long serialVersionUID = 4971388574385290739L;
 
 
+		ClassEntryComparator() {super();}
+
+
 		@Override
 		public final int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2)
 		{
 			final Integer value = o1.getValue();
 			return o2.getValue().compareTo(value);
 		}
+	}
+
+
+	@Override
+	public final String toString()
+	{
+		return "TinyImageClassifier{" + "knn=" + knn + ", classes=" + classes + '}';
 	}
 }

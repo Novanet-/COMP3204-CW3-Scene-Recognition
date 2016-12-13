@@ -91,7 +91,7 @@ public class ClassifierUtils
 	}
 
 
-	private static @NotNull String[] getPredictedClassesArray(final @NotNull ClassificationResult<String> predicted)
+	protected static @NotNull String[] getPredictedClassesArray(final @NotNull ClassificationResult<String> predicted)
 	{
 		final Set<String> predictedClasses = predicted.getPredictedClasses();
 		return predictedClasses.toArray(new String[predictedClasses.size()]);
@@ -106,7 +106,7 @@ public class ClassifierUtils
 	 * @param file
 	 * @param classes
 	 */
-	private static void buildAndPrintProgressString(final @NotNull IClassifier instance, final int j, final String file, final @NotNull String[] classes)
+	protected static void buildAndPrintProgressString(final @NotNull IClassifier instance, final int j, final String file, final @NotNull String[] classes)
 	{
 		final StringBuilder sb = new StringBuilder();
 		sb.append(file).append(' ');
