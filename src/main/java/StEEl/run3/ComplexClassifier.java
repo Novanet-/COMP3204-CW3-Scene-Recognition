@@ -22,6 +22,7 @@ import org.openimaj.ml.clustering.assignment.HardAssigner;
 import org.openimaj.ml.clustering.kmeans.ByteKMeans;
 import org.openimaj.util.pair.IntFloatPair;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,13 +30,17 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ComplexClassifier extends AbstractClassifier
 {
 
-	protected static final int                                 STEP        = 4;
+	protected static final int STEP = 4;
 	protected static final int                                 BINSIZE     = 8;
 	protected static final float                               E_THRESHOLD = 0.015f;
 	private static final   int                                 CLUSTERS    = 25;
+	public static final int listCap = 600;
 	private @Nullable      NaiveBayesAnnotator<FImage, String> annotator   = null;
 
 
+	/**
+	 * @param classifierID
+	 */
 	public ComplexClassifier(final int classifierID)
 	{
 		super(classifierID);
@@ -83,17 +88,28 @@ public class ComplexClassifier extends AbstractClassifier
 		//List of sift features from training set
 		final AtomicReference<List<LocalFeatureList<ByteDSIFTKeypoint>>> allKeys = new AtomicReference<>(new ArrayList<LocalFeatureList<ByteDSIFTKeypoint>>());
 
+		int count = 0;
+
 		//For each image
-		for (FImage image : dataset)
+		final List<LocalFeatureList<ByteDSIFTKeypoint>> localFeatureLists = allKeys.get();
+		for (final FImage image : dataset)
 		{
+			ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Image {0} getting sift", count));
 			//Get sift features
 			dsift.analyseImage(image);
-			allKeys.get().add(dsift.getByteKeypoints());
+			final LocalFeatureList<ByteDSIFTKeypoint> byteKeypoints = dsift.getByteKeypoints(0.005f);
+			localFeatureLists.add(byteKeypoints);
+			count++;
+		}
+
+		if (localFeatureLists.size() > 600)
+		{
+			allKeys.set(localFeatureLists.subList(0, listCap));
 		}
 
 		//Create a kmeans classifier with 600 categories (600 visual words)
 		final ByteKMeans kMeans = ByteKMeans.createKDTreeEnsemble(CLUSTERS);
-		final DataSource<byte[]> dataSource = new LocalFeatureListDataSource<>(allKeys.get());
+		final DataSource<byte[]> dataSource = new LocalFeatureListDataSource<>(localFeatureLists);
 
 		//Generate clusters (Visual words) from sift features.
 		ClassifierUtils.parallelAwarePrintln(instance, "Start clustering.");
