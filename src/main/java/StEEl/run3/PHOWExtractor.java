@@ -15,13 +15,14 @@ import org.openimaj.ml.clustering.assignment.HardAssigner;
 import org.openimaj.util.pair.IntFloatPair;
 
 import java.text.MessageFormat;
+import java.util.concurrent.atomic.AtomicInteger;
 
 //Extract bag of visual words feature vector
 class PHOWExtractor implements FeatureExtractor<DoubleFV, FImage>
 {
 
 	private final HardAssigner<byte[], float[], IntFloatPair> assigner;
-	private int count = 0;
+	private final AtomicInteger count = new AtomicInteger(0);
 
 
 	PHOWExtractor(HardAssigner<byte[], float[], IntFloatPair> assigner)
@@ -38,9 +39,9 @@ class PHOWExtractor implements FeatureExtractor<DoubleFV, FImage>
 	@Override
 	public final DoubleFV extractFeature(@NotNull FImage image)
 	{
-		if (count <= 1200)
+		if (count.get() <= 1200)
 		{
-			System.out.println(MessageFormat.format("[3] -- Image {0} extracting feature", count));
+			System.out.println(MessageFormat.format("[3] -- Image {0} extracting feature", count.get()));
 		}
 		final DenseSIFT denseSIFT = new DenseSIFT(ComplexClassifier.STEP, ComplexClassifier.BINSIZE);
 
@@ -53,7 +54,7 @@ class PHOWExtractor implements FeatureExtractor<DoubleFV, FImage>
 		//Bag of visual words for blocks and combine
 		final BlockSpatialAggregator<byte[], SparseIntFV> spatialAggregator = new BlockSpatialAggregator<>(bovw, 2, 2);
 
-		count++;
+		count.getAndIncrement();
 
 		//Return normalised feature vector
 		final LocalFeatureList<ByteDSIFTKeypoint> byteKeypoints = denseSIFT.getByteKeypoints(ComplexClassifier.E_THRESHOLD);
@@ -66,6 +67,6 @@ class PHOWExtractor implements FeatureExtractor<DoubleFV, FImage>
 	@Override
 	public final String toString()
 	{
-		return "PHOWExtractor{" + "assigner=" + assigner + ", count=" + count + '}';
+		return "PHOWExtractor{" + "assigner=" + assigner + ", count=" + count.get() + '}';
 	}
 }
