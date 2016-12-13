@@ -16,16 +16,19 @@ import org.openimaj.experiment.evaluation.classification.analysers.confusionmatr
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.processing.transform.AffineSimulation;
+import org.openimaj.util.parallel.Parallel;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.text.MessageFormat;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static StEEl.ClassifierUtils.parallelAwarePrintln;
 
@@ -96,17 +99,17 @@ class ClassifierController
 //			topExecutor.shutdown();
 //			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 //
-//			topExecutor = Executors.newCachedThreadPool();
-//
-//			topExecutor.execute(c2task);
-//			topExecutor.shutdown();
-//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
-
 			topExecutor = Executors.newCachedThreadPool();
 
-			topExecutor.execute(c3task);
+			topExecutor.execute(c2task);
 			topExecutor.shutdown();
 			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+
+//			topExecutor = Executors.newCachedThreadPool();
+//
+//			topExecutor.execute(c3task);
+//			topExecutor.shutdown();
+//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 		}
 		catch (final IOException | InterruptedException e)
 		{
@@ -224,17 +227,31 @@ class ClassifierController
 	{
 		GroupedDataset<String, ListDataset<FImage>, FImage> newDataset = new MapBackedDataset();
 
+		final AtomicInteger count = new AtomicInteger(0);
 
 		for (final String key : dataset.keySet()) {
 			final ListDataset<FImage> newImages = new ListBackedDataset<>();
 
-			for (final FImage image : dataset.get(key)) {
+
+//			for (final FImage image : dataset.get(key)) {
+//				newImages.add(image);
+//				newImages.add(AffineSimulation.transformImage(image, 0.01f, 1));
+//				newImages.add(AffineSimulation.transformImage(image, -0.01f, 1));
+//				newImages.add(AffineSimulation.transformImage(image, 0.02f, 1));
+//				newImages.add(AffineSimulation.transformImage(image, -0.02f, 1));
+//			}
+
+			Parallel.forEach(dataset.get(key), image ->
+			{
+				System.out.println(MessageFormat.format("Image {0}: Adding rotations", count.get()));
+
 				newImages.add(image);
 				newImages.add(AffineSimulation.transformImage(image, 0.01f, 1));
 				newImages.add(AffineSimulation.transformImage(image, -0.01f, 1));
 				newImages.add(AffineSimulation.transformImage(image, 0.02f, 1));
 				newImages.add(AffineSimulation.transformImage(image, -0.02f, 1));
-			}
+				count.getAndIncrement();
+			});
 
 			newDataset.put(key, newImages);
 		}
