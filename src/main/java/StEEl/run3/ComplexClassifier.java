@@ -23,8 +23,10 @@ import org.openimaj.ml.clustering.kmeans.ByteKMeans;
 import org.openimaj.ml.kernel.HomogeneousKernelMap;
 import org.openimaj.util.pair.IntFloatPair;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ComplexClassifier extends AbstractClassifier
 {
@@ -84,13 +86,16 @@ public class ComplexClassifier extends AbstractClassifier
 
 		//List of sift features from training set
 		List<LocalFeatureList<ByteDSIFTKeypoint>> allKeys = new ArrayList<LocalFeatureList<ByteDSIFTKeypoint>>();
+		final AtomicInteger count = new AtomicInteger(0);
 
 		//For each image
 		for (FImage image : dataset)
 		{
+			ClassifierUtils.parallelAwarePrintln(instance, MessageFormat.format("Image {0}: Getting sift", count.get()));
 			//Get sift features
 			dsift.analyseImage(image);
 			allKeys.add(dsift.getByteKeypoints(0.005f));  //Energy threshold of 0.005f
+			count.getAndIncrement();
 		}
 
 		//Reduce feature set for time
