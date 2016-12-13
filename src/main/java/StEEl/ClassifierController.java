@@ -3,6 +3,7 @@ package StEEl;
 import StEEl.run1.TinyImageClassifier;
 import StEEl.run2.LinearClassifier;
 import StEEl.run3.ComplexClassifier;
+import com.google.common.base.Stopwatch;
 import org.apache.commons.vfs2.FileSystemException;
 import org.jetbrains.annotations.NotNull;
 import org.openimaj.data.dataset.*;
@@ -165,6 +166,8 @@ class ClassifierController
 	 */
 	private void runClassifier(IClassifier instance) throws ClassifierException
 	{
+		Stopwatch sw = new Stopwatch();
+		sw.start();
 
 		final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData = createTrainingAndValidationData(instance);
 
@@ -181,11 +184,15 @@ class ClassifierController
 
 		trainClassifer(instance, trainingData);
 
-		parallelAwarePrintln(instance, "Training complete. Now predicting... (progress on stderr, output on stout)");
+		parallelAwarePrintln(instance, "Training complete. Now predicting... ");
 
 		testClassifier(instance, testData);
 
 		evaluateClassifier(instance, trainingData);
+
+		sw.stop();
+		parallelAwarePrintln(instance, MessageFormat.format("Time elapsed: {0}", sw.elapsed(TimeUnit.MINUTES)));
+
 
 	}
 
