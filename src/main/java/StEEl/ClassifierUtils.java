@@ -91,7 +91,7 @@ public class ClassifierUtils
 	}
 
 
-	protected static @NotNull String[] getPredictedClassesArray(final @NotNull ClassificationResult<String> predicted)
+	private static @NotNull String[] getPredictedClassesArray(final @NotNull ClassificationResult<String> predicted)
 	{
 		final Set<String> predictedClasses = predicted.getPredictedClasses();
 		return predictedClasses.toArray(new String[predictedClasses.size()]);

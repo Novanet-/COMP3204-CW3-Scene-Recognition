@@ -30,15 +30,13 @@ import java.util.List;
 public class LinearClassifier extends AbstractClassifier
 {
 
-	public static final  float[][] A               = {};
-	// Clustering parameters
-	private static final int CLUSTERS              = 500;
-	private static final int IMAGES_FOR_VOCABULARY = 10;
-
+	public static final  float[][] A                     = {};
 	// Patch parameters
 	public static final float STEP       = 8.0F;
 	public static final float PATCH_SIZE = 12.0F;
-
+	// Clustering parameters
+	private static final int       CLUSTERS              = 500;
+	private static final int       IMAGES_FOR_VOCABULARY = 10;
 	private LiblinearAnnotator<FImage, String> annotator = null;
 
 
@@ -51,6 +49,9 @@ public class LinearClassifier extends AbstractClassifier
 	}
 
 
+	/**
+	 * @param trainingSet
+	 */
 	@Override
 	public final void train(GroupedDataset<String, ListDataset<FImage>, FImage> trainingSet)
 	{
@@ -59,7 +60,7 @@ public class LinearClassifier extends AbstractClassifier
 		final HardAssigner<float[], float[], IntFloatPair> assigner = trainQuantiser(this, rndspl.getTrainingDataset());
 
 		// create FeatureExtractor.
-//		final BagOfVisualWords<float[]> bovw = new BagOfVisualWords<float[]>(assigner);
+		//		final BagOfVisualWords<float[]> bovw = new BagOfVisualWords<float[]>(assigner);
 		final BagOfVisualWordsExtractor extractor = new BagOfVisualWordsExtractor(assigner);
 
 		// Create and train a linear classifier.
@@ -72,23 +73,10 @@ public class LinearClassifier extends AbstractClassifier
 
 
 	/**
-	 * Classify an object.
-	 *
-	 * @param image the object to classify.
-	 * @return classes and scores for the object.
-	 */
-	@Override
-	public final ClassificationResult<String> classify(final FImage image)
-	{
-		return annotator.classify(image);
-	}
-
-
-	/**
 	 * Build a HardAssigner based on k-means ran on randomly picked patches from images.
 	 *
 	 * @param instance
-	 * @param sample The dataset to use for creating the HardAssigner.
+	 * @param sample   The dataset to use for creating the HardAssigner.
 	 */
 	private static HardAssigner<float[], float[], IntFloatPair> trainQuantiser(final LinearClassifier instance, Dataset<FImage> sample)
 	{
@@ -140,8 +128,6 @@ public class LinearClassifier extends AbstractClassifier
 		// Create patch positions
 		final RectangleSampler rect = new RectangleSampler(image, step, step, patch_size, patch_size);
 
-
-
 		// Extract feature from position r.
 		for (final Rectangle r : rect)
 		{
@@ -161,5 +147,18 @@ public class LinearClassifier extends AbstractClassifier
 		}
 
 		return areaList;
+	}
+
+
+	/**
+	 * Classify an object.
+	 *
+	 * @param image the object to classify.
+	 * @return classes and scores for the object.
+	 */
+	@Override
+	public final ClassificationResult<String> classify(final FImage image)
+	{
+		return annotator.classify(image);
 	}
 }

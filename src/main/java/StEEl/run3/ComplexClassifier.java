@@ -104,7 +104,6 @@ public class ComplexClassifier extends AbstractClassifier
 			allKeys = allKeys.subList(0, 10000);
 		}
 
-
 		//Create a kmeans classifier with 600 categories (600 visual words)
 		final ByteKMeans kMeans = ByteKMeans.createKDTreeEnsemble(CLUSTERS);
 		final DataSource<byte[]> dataSource = new LocalFeatureListDataSource<>(allKeys);

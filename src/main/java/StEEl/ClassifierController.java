@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.text.MessageFormat;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -95,21 +94,21 @@ class ClassifierController
 
 			//Synchronous execution
 			//Execute each tasks one at a time, waiting for each one to finish before invoking the next
-//			topExecutor.execute(c1task);
-//			topExecutor.shutdown();
-//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
-//
+			//			topExecutor.execute(c1task);
+			//			topExecutor.shutdown();
+			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+			//
 			topExecutor = Executors.newCachedThreadPool();
 
 			topExecutor.execute(c2task);
 			topExecutor.shutdown();
 			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 
-//			topExecutor = Executors.newCachedThreadPool();
-//
-//			topExecutor.execute(c3task);
-//			topExecutor.shutdown();
-//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+			//			topExecutor = Executors.newCachedThreadPool();
+			//
+			//			topExecutor.execute(c3task);
+			//			topExecutor.shutdown();
+			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 		}
 		catch (final IOException | InterruptedException e)
 		{
@@ -213,51 +212,11 @@ class ClassifierController
 
 		newTrainingDataset = addRotationImages(newTrainingDataset);
 
-		parallelAwarePrintln(instance, "Training set size = " + newTrainingDataset.getInstances(newTrainingDataset.getGroups().iterator().next()).size() * newTrainingDataset.size());
+		parallelAwarePrintln(instance,
+				"Training set size = " + newTrainingDataset.getInstances(newTrainingDataset.getGroups().iterator().next()).size() * newTrainingDataset.size());
 		return newTrainingDataset;
 	}
 
-	/**
-	 * Adds slightly rotated copies of every image in the set to improve classifier rotation invariance
-	 *
-	 * @param dataset Dataset of images to add rotation to
-	 * @return Dataset containing original images and slightly rotated copies
-	 */
-	private static @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> addRotationImages(@NotNull GroupedDataset<String, ListDataset<FImage>, FImage> dataset)
-	{
-		GroupedDataset<String, ListDataset<FImage>, FImage> newDataset = new MapBackedDataset();
-
-		final AtomicInteger count = new AtomicInteger(0);
-
-		for (final String key : dataset.keySet()) {
-			final ListDataset<FImage> newImages = new ListBackedDataset<>();
-
-
-//			for (final FImage image : dataset.get(key)) {
-//				newImages.add(image);
-//				newImages.add(AffineSimulation.transformImage(image, 0.01f, 1));
-//				newImages.add(AffineSimulation.transformImage(image, -0.01f, 1));
-//				newImages.add(AffineSimulation.transformImage(image, 0.02f, 1));
-//				newImages.add(AffineSimulation.transformImage(image, -0.02f, 1));
-//			}
-
-			Parallel.forEach(dataset.get(key), image ->
-			{
-				System.out.println(MessageFormat.format("Image {0}: Adding rotations", count.get()));
-
-				newImages.add(image);
-				newImages.add(AffineSimulation.transformImage(image, 0.01f, 1));
-				newImages.add(AffineSimulation.transformImage(image, -0.01f, 1));
-				newImages.add(AffineSimulation.transformImage(image, 0.02f, 1));
-				newImages.add(AffineSimulation.transformImage(image, -0.02f, 1));
-				count.getAndIncrement();
-			});
-
-			newDataset.put(key, newImages);
-		}
-
-		return newDataset;
-	}
 
 	/**
 	 * Calls the train method of the classifier to train it using the training data
@@ -340,13 +299,47 @@ class ClassifierController
 	 * @param trainingDataSize
 	 * @return
 	 */
-	private static GroupedRandomSplitter<String, FImage> splitTrainingData(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData,
-			final double trainingDataSize)
+	private static GroupedRandomSplitter<String, FImage> splitTrainingData(final GroupedDataset<String, ListDataset<FImage>, FImage> trainingData, final double trainingDataSize)
 	{
 		final int PERCENT80 = (int) Math.round(trainingDataSize * 0.8);
 		final int PERCENT15 = (int) Math.round(trainingDataSize * 0.15);
 		final int PERCENT5 = (int) Math.round(trainingDataSize * 0.05);
 		return new GroupedRandomSplitter<String, FImage>(trainingData, PERCENT80, PERCENT15, PERCENT5);
+	}
+
+
+	/**
+	 * Adds slightly rotated copies of every image in the set to improve classifier rotation invariance
+	 *
+	 * @param dataset Dataset of images to add rotation to
+	 * @return Dataset containing original images and slightly rotated copies
+	 */
+	private static @NotNull GroupedDataset<String, ListDataset<FImage>, FImage> addRotationImages(@NotNull GroupedDataset<String, ListDataset<FImage>, FImage> dataset)
+	{
+		GroupedDataset<String, ListDataset<FImage>, FImage> newDataset = new MapBackedDataset();
+
+		final AtomicInteger count = new AtomicInteger(0);
+
+		for (final String key : dataset.keySet())
+		{
+			final ListDataset<FImage> newImages = new ListBackedDataset<>();
+
+			Parallel.forEach(dataset.get(key), image ->
+			{
+				System.out.println(MessageFormat.format("Image {0}: Adding rotations", count.get()));
+
+				newImages.add(image);
+				newImages.add(AffineSimulation.transformImage(image, 0.01f, 1));
+				newImages.add(AffineSimulation.transformImage(image, -0.01f, 1));
+				newImages.add(AffineSimulation.transformImage(image, 0.02f, 1));
+				newImages.add(AffineSimulation.transformImage(image, -0.02f, 1));
+				count.getAndIncrement();
+			});
+
+			newDataset.put(key, newImages);
+		}
+
+		return newDataset;
 	}
 
 
@@ -402,11 +395,11 @@ class ClassifierController
 			{
 				if (consoleOutput)
 				{
-					printExecutor.execute(() -> printTestProgress(instance, testDatasetToClassify, j, filename, predicted));
+					printExecutor.execute(() -> ClassifierUtils.printTestProgress(instance, j, filename, predicted));
 				}
 				if (writeSubmissionFile)
 				{
-					printExecutor.execute(() -> writeResult(submissionFile, filename, predicted));
+					printExecutor.execute(() -> ClassifierUtils.writeResult(submissionFile, filename, predicted));
 				}
 			}
 			printExecutor.shutdown();
@@ -417,107 +410,6 @@ class ClassifierController
 			e.printStackTrace();
 		}
 	}
-
-
-	/**
-	 * Output assembler for console output
-	 *
-	 * @param instance              The current classifier instance
-	 * @param classifiedTestDataset
-	 * @param j
-	 * @param file
-	 * @param predicted
-	 */
-	private static void printTestProgress(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
-			final ClassificationResult<String> predicted)
-	{
-		if (predicted != null)
-		{
-			final String[] classes = getPredictedClassesArray(predicted);
-
-			buildAndPrintProgressString(instance, classifiedTestDataset, j, file, classes);
-
-		}
-	}
-
-
-	@NotNull
-	private static String[] getPredictedClassesArray(final ClassificationResult<String> predicted)
-	{
-		final Set<String> predictedClasses = predicted.getPredictedClasses();
-		return predictedClasses.toArray(new String[predictedClasses.size()]);
-	}
-
-
-	/**
-	 * Writes a line of the submission file, using the name of the image, and its predicted class
-	 *
-	 * @param file
-	 * @param imageName
-	 * @param predictedImageClasses
-	 */
-	private static void writeResult(File file, String imageName, ClassificationResult<String> predictedImageClasses)
-	{
-		if (predictedImageClasses != null)
-		{
-			final String[] classes = getPredictedClassesArray(predictedImageClasses);
-
-			try
-			{
-				final StringBuilder sb = new StringBuilder();
-				sb.append(imageName).append(' ');
-				for (final String cls : classes)
-				{
-					sb.append(cls);
-					sb.append(' ');
-				}
-				sb.append(System.lineSeparator());
-				Files.write(file.toPath(), sb.toString().getBytes(), StandardOpenOption.APPEND);
-			}
-			catch (final IOException e)
-			{
-				e.printStackTrace();
-			}
-		}
-		else
-		{
-		}
-	}
-
-
-	/**
-	 * String builder for console output, using image name and predicted class
-	 *
-	 * @param instance              The current classifier instance
-	 * @param classifiedTestDataset
-	 * @param j
-	 * @param file
-	 * @param classes
-	 */
-	private static void buildAndPrintProgressString(final IClassifier instance, final VFSListDataset<FImage> classifiedTestDataset, final int j, final String file,
-			final String[] classes)
-	{
-		StringBuilder sb = new StringBuilder();
-		sb.append(file).append(" ");
-
-		for (final String cls : classes)
-		{
-			sb.append(cls);
-			sb.append(" ");
-		}
-		sb.append(System.lineSeparator());
-		try
-		{
-			sb.append("\r").append("[").append(instance.getClassifierID()).append("] -- ");
-		}
-		catch (ClassifierException e)
-		{
-			e.printStackTrace();
-		}
-
-		System.out.print(sb);
-	}
-
 }
 
 
