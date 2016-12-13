@@ -38,7 +38,7 @@ class PHOWExtractor implements FeatureExtractor<DoubleFV, FImage>
 	@Override
 	public final DoubleFV extractFeature(@NotNull FImage image)
 	{
-		if (!(count > 1500))
+		if (count <= 1200)
 		{
 			System.out.println(MessageFormat.format("[3] -- Image {0} extracting feature", count));
 		}
