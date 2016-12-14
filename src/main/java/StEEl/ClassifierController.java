@@ -95,21 +95,21 @@ class ClassifierController
 
 			//Synchronous execution
 			//Execute each tasks one at a time, waiting for each one to finish before invoking the next
-			//			topExecutor.execute(c1task);
-			//			topExecutor.shutdown();
-			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
-			//
+			topExecutor.execute(c1task);
+			topExecutor.shutdown();
+			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+
 			topExecutor = Executors.newCachedThreadPool();
 
 			topExecutor.execute(c2task);
 			topExecutor.shutdown();
 			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 
-			//			topExecutor = Executors.newCachedThreadPool();
-			//
-			//			topExecutor.execute(c3task);
-			//			topExecutor.shutdown();
-			//			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
+			topExecutor = Executors.newCachedThreadPool();
+
+			topExecutor.execute(c3task);
+			topExecutor.shutdown();
+			topExecutor.awaitTermination(20, TimeUnit.MINUTES);
 		}
 		catch (final IOException | InterruptedException e)
 		{
